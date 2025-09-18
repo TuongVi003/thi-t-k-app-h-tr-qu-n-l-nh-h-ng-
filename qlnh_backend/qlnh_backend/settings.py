@@ -31,6 +31,8 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'oauth2_provider',
+    'rest_framework',
     'restaurant.apps.RestaurantConfig',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -75,8 +77,11 @@ WSGI_APPLICATION = 'qlnh_backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'quanlynhahang',
+        'USER': 'root',
+        'PASSWORD': 'Admin@123',
+        'HOST': ''
     }
 }
 
@@ -98,6 +103,12 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
+    )
+}
 
 
 # Internationalization
