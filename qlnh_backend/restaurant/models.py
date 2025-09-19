@@ -1,30 +1,27 @@
 from django.db import models
+from django.contrib.auth.models import AbstractUser
 
-# Khách hàng
-class KhachHang(models.Model):
+
+
+class NguoiDung(AbstractUser):
     ho_ten = models.CharField(max_length=100)
-    so_dien_thoai = models.CharField(max_length=15, unique=True)
-
-    def __str__(self):
-        return self.ho_ten
-
-
-# Nhân viên
-class NhanVien(models.Model):
-    so_dien_thoai = models.CharField(max_length=15, unique=True)
-    mat_khau = models.CharField(max_length=255)
-    ho_ten = models.CharField(max_length=100)
+    so_dien_thoai = models.CharField(max_length=15, unique=True,)
+    NGUOIDUNG_TYPE = (
+        ('khach_hang', 'Khách hàng'),
+        ('nhan_vien', 'Nhân viên'),
+    )
+    loai_nguoi_dung = models.CharField(max_length=50, choices=NGUOIDUNG_TYPE)
     VAI_TRO = (
+        ('customer', 'Khách hàng'),
         ('waiter', 'Phục vụ'),
         ('manager', 'Quản lý'),
         ('chef', 'Đầu bếp'),
         ('cashier', 'Thu ngân'),
     )
-    chuc_vu = models.CharField(max_length=50, choices=VAI_TRO)
+    chuc_vu = models.CharField(max_length=50, choices=VAI_TRO, default='customer')
     
-
     def __str__(self):
-        return f"{self.ho_ten} - {self.chuc_vu}"
+        return f"{self.ho_ten} - {self.loai_nguoi_dung}"
 
 
 # Bàn ăn
@@ -48,7 +45,7 @@ class MonAn(models.Model):
     ten_mon = models.CharField(max_length=100)
     gia = models.DecimalField(max_digits=10, decimal_places=2)
     mo_ta = models.TextField(blank=True, null=True)
-    danh_muc = models.ForeignKey(DanhMuc, on_delete=models.CASCADE),
+    danh_muc = models.ForeignKey(DanhMuc, on_delete=models.CASCADE)
     available = models.BooleanField(default=True, help_text="Có sẵn để gọi món")
 
     def __str__(self):
@@ -57,7 +54,7 @@ class MonAn(models.Model):
 
 # Đơn đặt bàn
 class DonHang(models.Model):
-    khach_hang = models.ForeignKey(KhachHang, on_delete=models.CASCADE)
+    khach_hang = models.ForeignKey(NguoiDung, on_delete=models.CASCADE)
     ban_an = models.ForeignKey(BanAn, on_delete=models.SET_NULL, null=True, blank=True)
     STATUS_CHOICES = (
         ('pending', 'Chờ xác nhận'),
@@ -74,8 +71,8 @@ class DonHang(models.Model):
 # Chi tiết đơn hàng (món ăn trong đơn)
 class Order(models.Model):
     ban_an = models.ForeignKey(BanAn, on_delete=models.CASCADE)
-    khach_hang = models.ForeignKey(KhachHang, on_delete=models.CASCADE)
-    nhan_vien = models.ForeignKey(NhanVien, on_delete=models.SET_NULL, null=True, blank=True)
+    khach_hang = models.ForeignKey(NguoiDung, on_delete=models.CASCADE, related_name='orders')
+    nhan_vien = models.ForeignKey(NguoiDung, on_delete=models.SET_NULL, null=True, blank=True)
     order_time = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

@@ -1,9 +1,13 @@
 
 from django.urls import include
-from .views import view
 from django.urls import path
+from . import views
+from rest_framework import routers
 
+
+router = routers.DefaultRouter()
+router.register('users', views.UserView, basename='user')
 
 urlpatterns = [
-    path('api/', view),
+    path('', include(router.urls)),
 ]
