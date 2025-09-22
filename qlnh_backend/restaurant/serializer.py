@@ -16,6 +16,9 @@ class UserSerializer(ModelSerializer):
     class Meta:
         model = NguoiDung
         fields = '__all__'
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
 
 
 class BanAnSerializer(ModelSerializer):
@@ -25,10 +28,13 @@ class BanAnSerializer(ModelSerializer):
         fields = '__all__'
 
 
+
 class DonHangSerializer(ModelSerializer):
     # declare these as explicit serializer fields so they are accepted from request body
     suc_chua = serializers.IntegerField(write_only=True)
     khu_vuc = serializers.ChoiceField(choices=BanAn.KHU_VUC, default='inside', write_only=True)
+    khach_hang = UserSerializer()
+    ban_an = BanAnSerializer()
 
     def create(self, validated_data):
         # copy validated_data so we can modify before creating DonHang

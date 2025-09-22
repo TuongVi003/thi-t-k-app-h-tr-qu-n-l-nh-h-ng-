@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import '../../services/auth_service.dart';
+import '../../services/reservation_service.dart';
 
 class ReservationScreen extends StatefulWidget {
   const ReservationScreen({super.key});
@@ -16,11 +17,10 @@ class _ReservationScreenState extends State<ReservationScreen> {
   String? _area;
   DateTime? _dateTime;
 
-  final List<String> _areas = [
-    'Gần cửa sổ',
-    'Khu trong nhà',
-    'Khu ngoài trời',
-    'Phòng riêng',
+  final List<Map<String, String>> _areas = [
+    {'id': 'inside', 'name': 'Trong nhà'},
+    {'id': 'outside', 'name': 'Ngoài trời'},
+    {'id': 'private-room', 'name': 'VIP'},
   ];
 
   void _pickDateTime() async {
@@ -44,7 +44,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
     });
   }
 
-  void _submit() {
+  void _submit() async {
     if (!AuthService.instance.isLoggedIn) {
       // Redirect to login
       Navigator.pushReplacement(
@@ -62,25 +62,20 @@ class _ReservationScreenState extends State<ReservationScreen> {
         return;
       }
 
-      // For now just show a confirmation dialog; in a real app we'd call an API.
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Xác nhận đặt bàn'),
-          content: Text('Bạn muốn đặt bàn cho $_people người tại ${_area ?? 'Không chọn'} vào ${_dateTime.toString()} ?'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đặt bàn thành công')));
-                Navigator.pop(context);
-              },
-              child: const Text('Xác nhận'),
-            ),
-          ],
-        ),
-      );
+      try {
+          await ReservationService.makeReservation(
+          accessToken: AuthService.instance.accessToken!,
+          sucChua: _people,
+          khuVuc: _area!,
+          ngayDat: _dateTime!,
+        );
+        
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đặt bàn thành công')));
+        
+        Navigator.pop(context);
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      }
     }
   }
 
@@ -127,7 +122,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 value: _area,
-                items: _areas.map((a) => DropdownMenuItem(value: a, child: Text(a))).toList(),
+                items: _areas.map((a) => DropdownMenuItem(value: a['id'], child: Text(a['name']!))).toList(),
                 onChanged: (v) => setState(() => _area = v),
                 validator: (v) => (v == null || v.isEmpty) ? 'Vui lòng chọn khu vực' : null,
                 decoration: const InputDecoration(border: OutlineInputBorder()),

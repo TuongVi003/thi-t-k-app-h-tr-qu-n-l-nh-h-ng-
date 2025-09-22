@@ -6,23 +6,18 @@ import '../constants/api.dart';
 class ReservationService {
   static Future<DonHang> makeReservation({
     required String accessToken,
-    required List<CartItem> cartItems,
-    required String soDienThoai,
-    required String hoTen,
-    String? ghiChu,
+    required int sucChua,
+    required String khuVuc,
+    required DateTime ngayDat,
+    String trangThai = 'pending'
   }) async {
     final uri = Uri.parse(ApiEndpoints.makeReservation);
 
     final body = jsonEncode({
-      'so_dien_thoai': soDienThoai,
-      'ho_ten': hoTen,
-      if (ghiChu != null && ghiChu.isNotEmpty) 'ghi_chu': ghiChu,
-      'items': cartItems
-          .map((item) => {
-                'menu_item_id': item.menuItem.id,
-                'quantity': item.quantity,
-              })
-          .toList(),
+      'suc_chua': sucChua,
+      'khu_vuc': khuVuc,
+      'ngay_dat': ngayDat.toIso8601String(),
+      'trang_thai': trangThai,
     });
 
     final response = await http.post(
@@ -34,8 +29,8 @@ class ReservationService {
       body: body,
     );
 
-    if (response.statusCode == 200) {
-      final Map<String, dynamic> data = json.decode(response.body) as Map<String, dynamic>;
+    if (response.statusCode == 201) {
+      final Map<String, dynamic> data = jsonDecode(response.body) as Map<String, dynamic>;
       return DonHang.fromJson(data);
     } else {
       throw Exception('Failed to make reservation (status ${response.statusCode})');
