@@ -7,7 +7,8 @@ from rest_framework import routers
 
 router = routers.DefaultRouter()
 router.register('users', views.UserView, basename='user')
+router.register('donhang', views.DonHangView, basename='donhang')
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('api/', include(router.urls)),
 ]
