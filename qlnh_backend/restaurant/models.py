@@ -10,7 +10,7 @@ class NguoiDung(AbstractUser):
         ('khach_hang', 'Khách hàng'),
         ('nhan_vien', 'Nhân viên'),
     )
-    loai_nguoi_dung = models.CharField(max_length=50, choices=NGUOIDUNG_TYPE)
+    loai_nguoi_dung = models.CharField(max_length=50, choices=NGUOIDUNG_TYPE, default='khach_hang')
     VAI_TRO = (
         ('customer', 'Khách hàng'),
         ('waiter', 'Phục vụ'),
@@ -28,6 +28,12 @@ class NguoiDung(AbstractUser):
 class BanAn(models.Model):
     so_ban = models.IntegerField(unique=True)
     suc_chua = models.IntegerField()
+    KHU_VUC = (
+        ('inside', 'Trong nhà'),
+        ('outside', 'Ngoài trời'),
+        ('private-room', 'VIP'),
+    )
+    khu_vuc = models.CharField(max_length=50, choices=KHU_VUC, default='inside')
 
     def __str__(self):
         return f"Bàn {self.so_ban} (tối đa {self.suc_chua} người)"
@@ -54,7 +60,7 @@ class MonAn(models.Model):
 
 # Đơn đặt bàn
 class DonHang(models.Model):
-    khach_hang = models.ForeignKey(NguoiDung, on_delete=models.CASCADE)
+    khach_hang = models.ForeignKey(NguoiDung, on_delete=models.CASCADE, null=True, related_name='reservations')
     ban_an = models.ForeignKey(BanAn, on_delete=models.SET_NULL, null=True, blank=True)
     STATUS_CHOICES = (
         ('pending', 'Chờ xác nhận'),
@@ -62,7 +68,7 @@ class DonHang(models.Model):
         ('canceled', 'Đã hủy'),
     )
     trang_thai = models.CharField(max_length=50, choices=STATUS_CHOICES)
-    ngay_dat = models.DateTimeField(auto_now_add=True)
+    ngay_dat = models.DateTimeField()
 
     def __str__(self):
         return f"Đơn #{self.id} - {self.khach_hang.ho_ten}"

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
+import '../../services/auth_service.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -29,23 +31,52 @@ class _LoginScreenState extends State<LoginScreen> {
         _isLoading = true;
       });
 
-      // Simulate login process
-      await Future.delayed(const Duration(seconds: 2));
+      final username = _emailController.text.trim();
+      final password = _passwordController.text;
 
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+      final result = await AuthService.instance.loginWithApi(
+        username: username,
+        password: password,
+      );
 
-        // Navigate to home screen
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const HomeScreen(),
-          ),
-          (route) => false,
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (result['ok'] == true) {
+        // If LoginScreen was pushed (can pop), return true to caller so it can continue
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop(true);
+        } else {
+          // Otherwise (app entry), replace with HomeScreen
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const HomeScreen(),
+            ),
+            (route) => false,
+          );
+        }
+      } else {
+        final msg = result['message'] ?? 'Đăng nhập thất bại';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg.toString())),
         );
       }
+    }
+  }
+
+  void _continueAsGuest() {
+    // Do not mark as logged in. If this screen was pushed, just pop back with false.
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop(false);
+    } else {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        (route) => false,
+      );
     }
   }
 
@@ -177,6 +208,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
 
+                // Continue as guest
+                TextButton(
+                  onPressed: _continueAsGuest,
+                  child: Text(
+                    'Tiếp tục không đăng nhập',
+                    style: TextStyle(
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+
                 // Forgot password
                 TextButton(
                   onPressed: () {
@@ -188,6 +230,26 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                   child: Text(
                     'Quên mật khẩu?',
+                    style: TextStyle(
+                      color: Colors.orange.shade700,
+                    ),
+                  ),
+                ),
+                // Register link
+                TextButton(
+                  onPressed: () async {
+                    final res = await Navigator.of(context).push<bool?>(
+                      MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                    );
+                    // If registration succeeded (returned true), show message
+                    if (res == true) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Đăng ký thành công. Vui lòng đăng nhập.')),
+                      );
+                    }
+                  },
+                  child: Text(
+                    'Đăng ký',
                     style: TextStyle(
                       color: Colors.orange.shade700,
                     ),
