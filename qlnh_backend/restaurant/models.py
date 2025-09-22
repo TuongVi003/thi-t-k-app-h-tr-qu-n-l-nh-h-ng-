@@ -24,6 +24,14 @@ class NguoiDung(AbstractUser):
         return f"{self.ho_ten} - {self.loai_nguoi_dung}"
 
 
+class KhachVangLai(models.Model):
+    ho_ten = models.CharField(max_length=100)
+    so_dien_thoai = models.CharField(max_length=15, unique=True)
+
+    def __str__(self):
+        return self.ho_ten
+
+
 # Bàn ăn
 class BanAn(models.Model):
     so_ban = models.IntegerField(unique=True)
@@ -61,6 +69,7 @@ class MonAn(models.Model):
 # Đơn đặt bàn
 class DonHang(models.Model):
     khach_hang = models.ForeignKey(NguoiDung, on_delete=models.CASCADE, null=True, related_name='reservations')
+    khach_vang_lai = models.ForeignKey(KhachVangLai, on_delete=models.CASCADE, null=True, related_name='reservations')
     ban_an = models.ForeignKey(BanAn, on_delete=models.SET_NULL, null=True, blank=True)
     STATUS_CHOICES = (
         ('pending', 'Chờ xác nhận'),
@@ -78,6 +87,7 @@ class DonHang(models.Model):
 class Order(models.Model):
     ban_an = models.ForeignKey(BanAn, on_delete=models.CASCADE)
     khach_hang = models.ForeignKey(NguoiDung, on_delete=models.CASCADE, related_name='orders')
+    khach_vang_lai = models.ForeignKey(KhachVangLai, on_delete=models.SET_NULL, null=True, related_name='orders')
     nhan_vien = models.ForeignKey(NguoiDung, on_delete=models.SET_NULL, null=True, blank=True)
     order_time = models.DateTimeField(auto_now_add=True)
 

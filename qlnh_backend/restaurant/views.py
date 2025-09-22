@@ -27,7 +27,8 @@ class UserView(viewsets.ViewSet, generics.CreateAPIView):
 class DonHangView(viewsets.ViewSet, generics.ListCreateAPIView):
     queryset = DonHang.objects.all()
     serializer_class = DonHangSerializer
-    permission_classes = [IsAuthenticated]   
+    # permission_classes = [IsAuthenticated]
+
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data, context={'request': request})

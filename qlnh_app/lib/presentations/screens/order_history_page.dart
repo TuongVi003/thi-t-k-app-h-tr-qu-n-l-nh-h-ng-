@@ -58,27 +58,27 @@ class OrderHistoryTab extends StatelessWidget {
           Expanded(
             child: ListView(
               children: [
-                _buildOrderHistoryCard(
-                  '#ORD001',
-                  '18/09/2025 - 14:30',
-                  'Đã giao',
-                  250000,
-                  ['Phở Bò Tái', 'Nước Cam Tươi'],
-                ),
-                _buildOrderHistoryCard(
-                  '#ORD002',
-                  '17/09/2025 - 12:15',
-                  'Đã giao',
-                  180000,
-                  ['Cơm Gà Teriyaki'],
-                ),
-                _buildOrderHistoryCard(
-                  '#ORD003',
-                  '15/09/2025 - 19:20',
-                  'Đã giao',
-                  320000,
-                  ['Pizza Hải Sản', 'Trà Sữa Trân Châu', 'Bánh Flan'],
-                ),
+                // _buildOrderHistoryCard(
+                //   '#ORD001',
+                //   '18/09/2025 - 14:30',
+                //   'Đã giao',
+                //   250000,
+                //   ['Phở Bò Tái', 'Nước Cam Tươi'],
+                // ),
+                // _buildOrderHistoryCard(
+                //   '#ORD002',
+                //   '17/09/2025 - 12:15',
+                //   'Đã giao',
+                //   180000,
+                //   ['Cơm Gà Teriyaki'],
+                // ),
+                // _buildOrderHistoryCard(
+                //   '#ORD003',
+                //   '15/09/2025 - 19:20',
+                //   'Đã giao',
+                //   320000,
+                //   ['Pizza Hải Sản', 'Trà Sữa Trân Châu', 'Bánh Flan'],
+                // ),
               ],
             ),
           ),
