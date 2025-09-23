@@ -33,12 +33,13 @@ class DonHangSerializer(ModelSerializer):
     # declare these as explicit serializer fields so they are accepted from request body
     suc_chua = serializers.IntegerField(write_only=True)
     khu_vuc = serializers.ChoiceField(choices=BanAn.KHU_VUC, default='inside', write_only=True)
-    khach_hang = UserSerializer()
-    ban_an = BanAnSerializer()
+    khach_hang = UserSerializer(read_only=True)
+    ban_an = BanAnSerializer(read_only=True)
 
     def create(self, validated_data):
         # copy validated_data so we can modify before creating DonHang
         data = validated_data.copy()
+        print(data)
 
         # extract the helper fields passed in request body
         suc_chua = data.pop('suc_chua', None)
@@ -50,7 +51,7 @@ class DonHangSerializer(ModelSerializer):
 
         # find a matching table
         ban_an = BanAn.objects.filter(suc_chua__gte=suc_chua, khu_vuc__exact=khu_vuc).order_by('suc_chua').first()
-
+        print('ban_an:', ban_an)
         if not ban_an:
             raise serializers.ValidationError({ 'non_field_errors': ["Không tìm thấy bàn ăn phù hợp"] })
 

@@ -33,7 +33,8 @@ class ReservationService {
       final Map<String, dynamic> data = jsonDecode(response.body) as Map<String, dynamic>;
       return DonHang.fromJson(data);
     } else {
-      throw Exception('Failed to make reservation (status ${response.statusCode})');
+      final Map<String, dynamic> errorData = jsonDecode(response.body) as Map<String, dynamic>;
+      throw Exception('${errorData['non_field_errors'] ?? response.body}');
     }
   }
 }

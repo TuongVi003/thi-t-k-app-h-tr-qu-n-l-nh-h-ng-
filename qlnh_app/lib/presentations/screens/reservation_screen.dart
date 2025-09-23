@@ -74,7 +74,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
         
         Navigator.pop(context);
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Không tìm thấy bàn phù hợp')));
       }
     }
   }

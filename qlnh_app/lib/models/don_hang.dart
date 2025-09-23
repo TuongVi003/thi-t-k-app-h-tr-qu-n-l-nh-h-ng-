@@ -1,8 +1,10 @@
+import 'ban_an.dart';
+
 class DonHang {
   final int id;
   final String trangThai;
   final DateTime ngayDat;
-  final int banAn;
+  final BanAn banAn;
 
   DonHang({
     required this.id,
@@ -16,7 +18,7 @@ class DonHang {
       id: json['id'] as int,
       trangThai: json['trang_thai'] as String,
       ngayDat: DateTime.parse(json['ngay_dat'] as String),
-      banAn: json['ban_an'] as int,
+      banAn: BanAn.fromJson(json['ban_an'] as Map<String, dynamic>),
     );
   }
 
