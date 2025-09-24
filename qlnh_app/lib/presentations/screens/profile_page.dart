@@ -137,7 +137,17 @@ class ProfileTab extends StatelessWidget {
                 _buildMenuOption(Icons.logout, 'Đăng xuất', () {
                   if (AuthService.instance.isLoggedIn) {
                     AuthService.instance.logout();
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    );
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã đăng xuất')));
+                  }
+                  else {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    );
                   }
                 }, textColor: Colors.red),
               ],

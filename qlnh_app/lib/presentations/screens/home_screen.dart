@@ -18,6 +18,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   List<CartItem> _cartItems = [];
+  bool _showReservationTooltip = true;
 
   void _addToCart(MenuItem item) {
     setState(() {
@@ -85,6 +86,12 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _hideReservationTooltip() {
+    setState(() {
+      _showReservationTooltip = false;
+    });
+  }
+
   void _logout() {
     showDialog(
       context: context,
@@ -119,131 +126,252 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Nhà Hàng Delicious',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: Colors.orange.shade700,
-        elevation: 0,
-        actions: [
-          Stack(
-            children: [
-              IconButton(
-                onPressed: () {
-                  _onItemTapped(1);
-                },
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
+            title: const Text(
+              'Nhà Hàng Delicious',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            backgroundColor: Colors.orange.shade700,
+            elevation: 0,
+            actions: [
+              Stack(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      _onItemTapped(1);
+                    },
+                    icon: const Icon(
+                      Icons.shopping_cart,
+                      color: Colors.white,
+                    ),
+                  ),
+                  if (_cartItemCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          '$_cartItemCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              PopupMenuButton<String>(
                 icon: const Icon(
-                  Icons.shopping_cart,
+                  Icons.account_circle,
                   color: Colors.white,
                 ),
+                onSelected: (String value) {
+                  if (value == 'logout') {
+                    _logout();
+                  } else if (value == 'reservation') {
+                    _hideReservationTooltip(); // Hide tooltip when reservation is selected
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ReservationScreen()),
+                    );
+                  }
+                },
+                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                  const PopupMenuItem<String>(
+                    value: 'reservation',
+                    child: ListTile(
+                      leading: Icon(Icons.event_seat),
+                      title: Text('Đặt bàn'),
+                    ),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'profile',
+                    child: ListTile(
+                      leading: Icon(Icons.person),
+                      title: Text('Thông tin cá nhân'),
+                    ),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'settings',
+                    child: ListTile(
+                      leading: Icon(Icons.settings),
+                      title: Text('Cài đặt'),
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem<String>(
+                    value: 'logout',
+                    child: ListTile(
+                      leading: Icon(Icons.logout),
+                      title: Text('Đăng xuất'),
+                    ),
+                  ),
+                ],
               ),
-              if (_cartItemCount > 0)
-                Positioned(
-                  right: 8,
-                  top: 8,
+            ],
+          ),
+          body: _widgetOptions.elementAt(_selectedIndex),
+          bottomNavigationBar: BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            items: const <BottomNavigationBarItem>[
+              BottomNavigationBarItem(
+                icon: Icon(Icons.restaurant_menu),
+                label: 'Menu',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.shopping_cart),
+                label: 'Giỏ hàng',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.history),
+                label: 'Lịch sử',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person),
+                label: 'Tài khoản',
+              ),
+            ],
+            currentIndex: _selectedIndex,
+            selectedItemColor: Colors.orange.shade700,
+            onTap: _onItemTapped,
+          ),
+        ),
+        // Floating tooltip overlay
+        if (_showReservationTooltip)
+          Positioned(
+            top: kToolbarHeight + 20, // Position below the AppBar
+            right: 16,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Material(
+                  elevation: 8,
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.orange.shade700,
                   child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 16,
-                      minHeight: 16,
-                    ),
-                    child: Text(
-                      '$_cartItemCount',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
+                    padding: const EdgeInsets.all(12),
+                    constraints: const BoxConstraints(maxWidth: 250),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.event_seat,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Đặt bàn tại đây!',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: _hideReservationTooltip,
+                              child: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Nhấn vào biểu tượng tài khoản để xem menu đặt bàn',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
                   ),
                 ),
-            ],
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(
-              Icons.account_circle,
-              color: Colors.white,
+                // Curved arrow pointing to PopupMenuButton
+                const SizedBox(height: 5),
+                CustomPaint(
+                  size: const Size(60, 40),
+                  painter: ArrowPainter(),
+                ),
+              ],
             ),
-            onSelected: (String value) {
-              if (value == 'logout') {
-                _logout();
-              } else if (value == 'reservation') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ReservationScreen()),
-                );
-              }
-            },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              const PopupMenuItem<String>(
-                value: 'reservation',
-                child: ListTile(
-                  leading: Icon(Icons.event_seat),
-                  title: Text('Đặt bàn'),
-                ),
-              ),
-              const PopupMenuItem<String>(
-                value: 'profile',
-                child: ListTile(
-                  leading: Icon(Icons.person),
-                  title: Text('Thông tin cá nhân'),
-                ),
-              ),
-              const PopupMenuItem<String>(
-                value: 'settings',
-                child: ListTile(
-                  leading: Icon(Icons.settings),
-                  title: Text('Cài đặt'),
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem<String>(
-                value: 'logout',
-                child: ListTile(
-                  leading: Icon(Icons.logout),
-                  title: Text('Đăng xuất'),
-                ),
-              ),
-            ],
           ),
-        ],
-      ),
-      body: _widgetOptions.elementAt(_selectedIndex),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.restaurant_menu),
-            label: 'Menu',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_cart),
-            label: 'Giỏ hàng',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'Lịch sử',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Tài khoản',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.orange.shade700,
-        onTap: _onItemTapped,
-      ),
+      ],
     );
   }
+}
+
+// Custom painter for drawing curved arrow
+class ArrowPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.orange.shade700
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final path = Path();
+    
+    // Start from the bottom left of the arrow area
+    path.moveTo(0, size.height * 0.2);
+    
+    // Create a curved path pointing upward and to the right
+    path.quadraticBezierTo(
+      size.width * 0.3, // control point x
+      0, // control point y
+      size.width * 0.8, // end point x
+      size.height * 0.1, // end point y
+    );
+    
+    canvas.drawPath(path, paint);
+    
+    // Draw arrowhead
+    final arrowheadPaint = Paint()
+      ..color = Colors.orange.shade700
+      ..style = PaintingStyle.fill;
+    
+    final arrowPath = Path();
+    final arrowTipX = size.width * 0.8;
+    final arrowTipY = size.height * 0.1;
+    
+    // Create arrowhead pointing toward the account icon
+    arrowPath.moveTo(arrowTipX, arrowTipY);
+    arrowPath.lineTo(arrowTipX - 8, arrowTipY - 4);
+    arrowPath.lineTo(arrowTipX - 8, arrowTipY + 4);
+    arrowPath.close();
+    
+    canvas.drawPath(arrowPath, arrowheadPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
