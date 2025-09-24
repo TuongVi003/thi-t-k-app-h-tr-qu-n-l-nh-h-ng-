@@ -101,6 +101,7 @@ class ChiTietOrder(models.Model):
     so_luong = models.IntegerField()
     gia = models.IntegerField()
 
+
     def __str__(self):
         return f"{self.so_luong} x {self.mon_an.ten_mon} (Order #{self.order.id})"
 

@@ -14,7 +14,13 @@ from .models import DonHang, NguoiDung
 class UserView(viewsets.ViewSet, generics.CreateAPIView):
     queryset = NguoiDung.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
+    
+    def get_permissions(self):
+        if self.action in ['create']:
+            self.permission_classes = [AllowAny]
+        else:
+            self.permission_classes = [IsAuthenticated]
+        return super().get_permissions()
 
     @action(detail=False, methods=['get'], url_path='current-user')
     def get_current_user(self, request):
