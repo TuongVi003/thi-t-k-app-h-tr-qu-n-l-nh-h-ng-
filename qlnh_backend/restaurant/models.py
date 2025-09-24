@@ -86,7 +86,7 @@ class DonHang(models.Model):
 # Chi tiết đơn hàng (món ăn trong đơn)
 class Order(models.Model):
     ban_an = models.ForeignKey(BanAn, on_delete=models.CASCADE)
-    khach_hang = models.ForeignKey(NguoiDung, on_delete=models.CASCADE, related_name='orders')
+    khach_hang = models.ForeignKey(NguoiDung, on_delete=models.CASCADE, related_name='orders', null=True)
     khach_vang_lai = models.ForeignKey(KhachVangLai, on_delete=models.SET_NULL, null=True, related_name='orders')
     nhan_vien = models.ForeignKey(NguoiDung, on_delete=models.SET_NULL, null=True, blank=True)
     order_time = models.DateTimeField(auto_now_add=True)
@@ -100,6 +100,11 @@ class ChiTietOrder(models.Model):
     mon_an = models.ForeignKey(MonAn, on_delete=models.CASCADE)
     so_luong = models.IntegerField()
     gia = models.IntegerField()
+    TrangThaiMonAn = (
+        ('dang-lam', 'Đang làm'),
+        ('hoan-thanh', 'Hoàn thành')
+    )
+    trang_thai = models.CharField(max_length=30, choices=TrangThaiMonAn, default='dang-lam')
 
 
     def __str__(self):
