@@ -22,7 +22,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     const TableManagementScreen(),
     const BookingManagementScreen(),
     const OrderScreen(),
-    const StatisticsScreen(),
+    // const StatisticsScreen(),
+    const Center(child: Text('Thống kê', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
   ];
 
   @override

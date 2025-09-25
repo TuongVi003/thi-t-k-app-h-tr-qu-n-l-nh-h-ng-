@@ -38,26 +38,26 @@ class _OrderScreenState extends State<OrderScreen>
     // Dữ liệu mẫu menu
     menuItems = [
       // Món chính
-      MenuItem(
-        id: '1',
-        name: 'Phở Bò Tái',
-        description: 'Phở bò truyền thống với thịt tái tươi ngon',
-        price: 65000,
-        imageUrl: 'https://via.placeholder.com/150',
-        category: MenuCategory.mainCourse,
-        ingredients: ['Thịt bò', 'Bánh phở', 'Hành lá', 'Ngò gai'],
-        preparationTime: 10,
-      ),
-      MenuItem(
-        id: '2',
-        name: 'Cơm Gà Nướng',
-        description: 'Cơm trắng với gà nướng mật ong thơm ngon',
-        price: 85000,
-        imageUrl: 'https://via.placeholder.com/150',
-        category: MenuCategory.mainCourse,
-        ingredients: ['Thịt gà', 'Cơm trắng', 'Mật ong', 'Rau củ'],
-        preparationTime: 15,
-      ),
+      // MenuItem(
+      //   id: '1',
+      //   name: 'Phở Bò Tái',
+      //   description: 'Phở bò truyền thống với thịt tái tươi ngon',
+      //   price: 65000,
+      //   imageUrl: 'https://via.placeholder.com/150',
+      //   category: MenuCategory.mainCourse,
+      //   ingredients: ['Thịt bò', 'Bánh phở', 'Hành lá', 'Ngò gai'],
+      //   preparationTime: 10,
+      // ),
+      // MenuItem(
+      //   id: '2',
+      //   name: 'Cơm Gà Nướng',
+      //   description: 'Cơm trắng với gà nướng mật ong thơm ngon',
+      //   price: 85000,
+      //   imageUrl: 'https://via.placeholder.com/150',
+      //   category: MenuCategory.mainCourse,
+      //   ingredients: ['Thịt gà', 'Cơm trắng', 'Mật ong', 'Rau củ'],
+      //   preparationTime: 15,
+      // ),
       
       // Khai vị
       MenuItem(

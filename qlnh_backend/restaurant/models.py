@@ -69,8 +69,8 @@ class MonAn(models.Model):
 
 # Đơn đặt bàn
 class DonHang(models.Model):
-    khach_hang = models.ForeignKey(NguoiDung, on_delete=models.CASCADE, null=True, related_name='reservations')
-    khach_vang_lai = models.ForeignKey(KhachVangLai, on_delete=models.CASCADE, null=True, related_name='reservations')
+    khach_hang = models.ForeignKey(NguoiDung, on_delete=models.CASCADE, null=True, blank=True, related_name='reservations')
+    khach_vang_lai = models.ForeignKey(KhachVangLai, on_delete=models.CASCADE, null=True, blank=True, related_name='reservations')
     ban_an = models.ForeignKey(BanAn, on_delete=models.SET_NULL, null=True, blank=True)
     STATUS_CHOICES = (
         ('pending', 'Chờ xác nhận'),
