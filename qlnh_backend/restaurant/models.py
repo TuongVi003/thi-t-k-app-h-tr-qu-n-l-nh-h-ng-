@@ -61,6 +61,7 @@ class MonAn(models.Model):
     mo_ta = models.TextField(blank=True, null=True)
     danh_muc = models.ForeignKey(DanhMuc, on_delete=models.CASCADE)
     available = models.BooleanField(default=True, help_text="Có sẵn để gọi món")
+    hinh_anh = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
         return f"{self.ten_mon} - {self.gia} VND"
@@ -100,11 +101,13 @@ class ChiTietOrder(models.Model):
     mon_an = models.ForeignKey(MonAn, on_delete=models.CASCADE)
     so_luong = models.IntegerField()
     gia = models.IntegerField()
+
     TrangThaiMonAn = (
+        ('dang-doi', 'Chờ chế biến'),
         ('dang-lam', 'Đang làm'),
         ('hoan-thanh', 'Hoàn thành')
     )
-    trang_thai = models.CharField(max_length=30, choices=TrangThaiMonAn, default='dang-lam')
+    trang_thai = models.CharField(max_length=30, choices=TrangThaiMonAn, default='dang-doi')
 
 
     def __str__(self):

@@ -5,6 +5,17 @@ enum TableStatus {
   cleaning     // Bàn đang dọn dẹp
 }
 
+enum CustomerType {
+  registered,  // Khách hàng đã đăng ký
+  guest,       // Khách vãng lai
+}
+
+enum AreaType {
+  inside,      // Trong nhà
+  outside,     // Ngoài trời
+  privateRoom, // VIP
+}
+
 // Converter functions for API status
 TableStatus getTableStatusFromApiStatus(String apiStatus) {
   switch (apiStatus.toLowerCase()) {
@@ -26,9 +37,11 @@ class Table {
   final int number;
   final int capacity;
   TableStatus status;
+  AreaType area;
   String? customerId;
   String? customerName;
   String? customerPhone;
+  CustomerType? customerType;
   DateTime? reservationTime;
   String? notes;
 
@@ -37,9 +50,11 @@ class Table {
     required this.number,
     required this.capacity,
     this.status = TableStatus.available,
+    this.area = AreaType.inside,
     this.customerId,
     this.customerName,
     this.customerPhone,
+    this.customerType,
     this.reservationTime,
     this.notes,
   });
@@ -50,9 +65,11 @@ class Table {
     int? number,
     int? capacity,
     TableStatus? status,
+    AreaType? area,
     String? customerId,
-    String? customerName,
+    String? customerName,  
     String? customerPhone,
+    CustomerType? customerType,
     DateTime? reservationTime,
     String? notes,
   }) {
@@ -61,23 +78,25 @@ class Table {
       number: number ?? this.number,
       capacity: capacity ?? this.capacity,
       status: status ?? this.status,
+      area: area ?? this.area,
       customerId: customerId ?? this.customerId,
       customerName: customerName ?? this.customerName,
       customerPhone: customerPhone ?? this.customerPhone,
+      customerType: customerType ?? this.customerType,
       reservationTime: reservationTime ?? this.reservationTime,
       notes: notes ?? this.notes,
     );
-  }
-
-  Map<String, dynamic> toJson() {
+  }  Map<String, dynamic> toJson() {
     return {
       'id': id,
       'number': number,
       'capacity': capacity,
       'status': status.toString(),
+      'area': area.toString(),
       'customerId': customerId,
       'customerName': customerName,
       'customerPhone': customerPhone,
+      'customerType': customerType?.toString(),
       'reservationTime': reservationTime?.toIso8601String(),
       'notes': notes,
     };
@@ -92,9 +111,21 @@ class Table {
         (e) => e.toString() == json['status'],
         orElse: () => TableStatus.available,
       ),
+      area: json['area'] != null 
+          ? AreaType.values.firstWhere(
+              (e) => e.toString() == json['area'],
+              orElse: () => AreaType.inside,
+            )
+          : AreaType.inside,
       customerId: json['customerId'],
       customerName: json['customerName'],
       customerPhone: json['customerPhone'],
+      customerType: json['customerType'] != null 
+          ? CustomerType.values.firstWhere(
+              (e) => e.toString() == json['customerType'],
+              orElse: () => CustomerType.registered,
+            )
+          : null,
       reservationTime: json['reservationTime'] != null 
           ? DateTime.parse(json['reservationTime']) 
           : null,
@@ -102,7 +133,123 @@ class Table {
     );
   }
 
-  // Factory constructor để tạo Table từ DonHang API
+  // Factory constructor để tạo Table từ Tables API mới
+  factory Table.fromTablesApi(Map<String, dynamic> tableJson) {
+    TableStatus status;
+    switch (tableJson['status']?.toLowerCase()) {
+      case 'occupied':
+        status = TableStatus.occupied;
+        break;
+      case 'available':
+        status = TableStatus.available;
+        break;
+      default:
+        status = TableStatus.available;
+    }
+    
+    // Xử lý khu vực
+    AreaType area = _getAreaTypeFromString(tableJson['khu_vuc']);
+    String khuVucDisplay = _getKhuVucDisplay(tableJson['khu_vuc']);
+    
+    // Xử lý thông tin khách hàng
+    String? customerName;
+    String? customerPhone;
+    CustomerType? customerType;
+    
+    final currentCustomer = tableJson['current_customer'];
+    if (currentCustomer != null) {
+      customerName = currentCustomer['name'];
+      customerPhone = currentCustomer['phone'];
+      
+      switch (currentCustomer['type']?.toLowerCase()) {
+        case 'registered':
+          customerType = CustomerType.registered;
+          break;
+        case 'guest':
+          customerType = CustomerType.guest;
+          break;
+        default:
+          customerType = CustomerType.registered;
+      }
+    }
+    
+    String notes = 'Khu vực: $khuVucDisplay';
+    if (customerName != null) {
+      String customerTypeText = customerType == CustomerType.guest ? 'Khách vãng lai' : 'Khách hàng';
+      notes += '\n$customerTypeText: $customerName';
+      if (customerPhone != null) {
+        notes += ' - $customerPhone';
+      }
+    }
+    
+    return Table(
+      id: tableJson['id'].toString(),
+      number: tableJson['so_ban'],
+      capacity: tableJson['suc_chua'],
+      status: status,
+      area: area,
+      customerName: customerName,
+      customerPhone: customerPhone,
+      customerType: customerType,
+      notes: notes,
+    );
+  }
+
+  // Hàm hỗ trợ để chuyển đổi khu vực từ string sang enum
+  static AreaType _getAreaTypeFromString(String khuVuc) {
+    switch (khuVuc) {
+      case 'inside':
+        return AreaType.inside;
+      case 'outside':
+        return AreaType.outside;
+      case 'private-room':
+        return AreaType.privateRoom;
+      default:
+        return AreaType.inside;
+    }
+  }
+
+  // Hàm hỗ trợ để chuyển đổi khu vực hiển thị
+  static String _getKhuVucDisplay(String khuVuc) {
+    switch (khuVuc) {
+      case 'inside':
+        return 'Trong nhà';
+      case 'outside':
+        return 'Ngoài trời';
+      case 'private-room':
+        return 'VIP';
+      default:
+        return khuVuc;
+    }
+  }
+
+  // Getter để lấy tên loại khách hàng
+  String get customerTypeDisplayName {
+    if (customerType == null) return '';
+    switch (customerType!) {
+      case CustomerType.registered:
+        return 'Khách hàng';
+      case CustomerType.guest:
+        return 'Khách vãng lai';
+    }
+  }
+
+  // Getter để lấy tên hiển thị khu vực
+  String get areaDisplayName {
+    switch (area) {
+      case AreaType.inside:
+        return 'Trong nhà';
+      case AreaType.outside:
+        return 'Ngoài trời';
+      case AreaType.privateRoom:
+        return 'VIP';
+    }
+  }
+
+  // Getter để kiểm tra có khách hàng hay không
+  bool get hasCustomer => customerName != null && customerName!.isNotEmpty;
+
+  // Factory constructor để tạo Table từ DonHang API (deprecated - giữ lại để tương thích)
   factory Table.fromDonHangApi(Map<String, dynamic> donHangJson) {
     final banAn = donHangJson['ban_an'];
     final khachHang = donHangJson['khach_hang'];
@@ -112,8 +259,10 @@ class Table {
       number: banAn['so_ban'],
       capacity: banAn['suc_chua'],
       status: getTableStatusFromApiStatus(donHangJson['trang_thai']),
+      area: _getAreaTypeFromString(banAn['khu_vuc']),
       customerName: khachHang['ho_ten'],
       customerPhone: khachHang['so_dien_thoai'],
+      customerType: CustomerType.registered,
       reservationTime: DateTime.parse(donHangJson['ngay_dat']),
       notes: 'Khu vực: ${banAn['khu_vuc']}',
     );
