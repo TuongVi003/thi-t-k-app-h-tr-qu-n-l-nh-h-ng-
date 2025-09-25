@@ -257,18 +257,28 @@ class _HomeScreenState extends State<HomeScreen> {
         // Floating tooltip overlay
         if (_showReservationTooltip)
           Positioned(
-            top: kToolbarHeight + 20, // Position below the AppBar
-            right: 16,
+            top: kToolbarHeight + 40, // Move closer to AppBar
+            right: 60, // Move closer to the account icon
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                // Arrow pointing upward to the account icon
+                Padding(
+                  padding: const EdgeInsets.only(right: 8), // Much closer to right edge
+                  child: CustomPaint(
+                    size: const Size(80, 30), // Wider and shorter
+                    painter: ArrowPainter(),
+                  ),
+                ),
+                const SizedBox(height: 2), // Smaller gap
+                // Tooltip box
                 Material(
                   elevation: 8,
                   borderRadius: BorderRadius.circular(12),
                   color: Colors.orange.shade700,
                   child: Container(
                     padding: const EdgeInsets.all(12),
-                    constraints: const BoxConstraints(maxWidth: 250),
+                    constraints: const BoxConstraints(maxWidth: 200),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -314,12 +324,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-                // Curved arrow pointing to PopupMenuButton
-                const SizedBox(height: 5),
-                CustomPaint(
-                  size: const Size(60, 40),
-                  painter: ArrowPainter(),
-                ),
               ],
             ),
           ),
@@ -334,24 +338,45 @@ class ArrowPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = Colors.orange.shade700
-      ..strokeWidth = 3
+      ..strokeWidth = 4
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
     final path = Path();
     
-    // Start from the bottom left of the arrow area
-    path.moveTo(0, size.height * 0.2);
+    // Start from the bottom left (from tooltip direction)
+    final startX = size.width * 0.2;
+    final startY = size.height * 0.9;
     
-    // Create a curved path pointing upward and to the right
+    // End point (account icon position)
+    final endX = size.width * 0.95;
+    final endY = 0.0;
+    
+    // Create a curved path pointing directly to the account icon position
+    path.moveTo(startX, startY);
+    
+    // Curved line going up and sharply to the right (directly to account icon)
     path.quadraticBezierTo(
-      size.width * 0.3, // control point x
-      0, // control point y
-      size.width * 0.8, // end point x
-      size.height * 0.1, // end point y
+      size.width * 0.5, // control point x (curve middle)
+      size.height * 0.3, // control point y (higher curve)
+      endX, // end point x (very close to right edge - account icon position)
+      endY, // end point y (top edge - AppBar level)
     );
     
     canvas.drawPath(path, paint);
+    
+    // Calculate the direction of the curve at the end point
+    final controlX = size.width * 0.5;
+    final controlY = size.height * 0.3;
+    
+    // Direction vector from control point to end point
+    final directionX = endX - controlX;
+    final directionY = endY - controlY;
+    
+    // Normalize the direction vector
+    final length = (directionX * directionX + directionY * directionY).abs();
+    final normalizedDirX = directionX / length * 10;
+    final normalizedDirY = directionY / length * 10;
     
     // Draw arrowhead
     final arrowheadPaint = Paint()
@@ -359,13 +384,17 @@ class ArrowPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
     
     final arrowPath = Path();
-    final arrowTipX = size.width * 0.8;
-    final arrowTipY = size.height * 0.1;
     
-    // Create arrowhead pointing toward the account icon
-    arrowPath.moveTo(arrowTipX, arrowTipY);
-    arrowPath.lineTo(arrowTipX - 8, arrowTipY - 4);
-    arrowPath.lineTo(arrowTipX - 8, arrowTipY + 4);
+    // Create arrowhead pointing in the direction of the curve
+    arrowPath.moveTo(endX, endY);
+    arrowPath.lineTo(
+      endX - normalizedDirX - normalizedDirY * 0.5, 
+      endY - normalizedDirY + normalizedDirX * 0.5
+    );
+    arrowPath.lineTo(
+      endX - normalizedDirX + normalizedDirY * 0.5, 
+      endY - normalizedDirY - normalizedDirX * 0.5
+    );
     arrowPath.close();
     
     canvas.drawPath(arrowPath, arrowheadPaint);

@@ -45,13 +45,9 @@ class _TableDetailDialogState extends State<TableDetailDialog> {
   }
 
   void _saveChanges() {
+    // Chỉ cho phép cập nhật trạng thái và ghi chú
+    // Thông tin khách hàng từ API không được chỉnh sửa
     final updatedTable = currentTable.copyWith(
-      customerName: _customerNameController.text.isEmpty 
-          ? null 
-          : _customerNameController.text,
-      customerPhone: _customerPhoneController.text.isEmpty 
-          ? null 
-          : _customerPhoneController.text,
       notes: _notesController.text.isEmpty 
           ? null 
           : _notesController.text,
@@ -148,12 +144,40 @@ class _TableDetailDialogState extends State<TableDetailDialog> {
             const SizedBox(height: 20),
             
             // Thông tin khách hàng
-            const Text(
-              'Thông tin khách hàng',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                const Text(
+                  'Thông tin khách hàng',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (currentTable.customerType != null) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getCustomerTypeColor(currentTable.customerType!).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _getCustomerTypeColor(currentTable.customerType!).withOpacity(0.3),
+                      ),
+                    ),
+                    child: Text(
+                      currentTable.customerTypeDisplayName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: _getCustomerTypeColor(currentTable.customerType!),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
             const SizedBox(height: 12),
             
@@ -164,6 +188,7 @@ class _TableDetailDialogState extends State<TableDetailDialog> {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.person),
               ),
+              readOnly: true, // Chỉ đọc vì dữ liệu từ API
             ),
             
             const SizedBox(height: 12),
@@ -176,6 +201,7 @@ class _TableDetailDialogState extends State<TableDetailDialog> {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.phone),
               ),
+              readOnly: true, // Chỉ đọc vì dữ liệu từ API
             ),
             
             const SizedBox(height: 12),
@@ -217,18 +243,6 @@ class _TableDetailDialogState extends State<TableDetailDialog> {
                   models.TableStatus.occupied,
                   Icons.people,
                   Colors.red,
-                ),
-                _buildStatusButton(
-                  'Đặt trước',
-                  models.TableStatus.reserved,
-                  Icons.schedule,
-                  Colors.orange,
-                ),
-                _buildStatusButton(
-                  'Dọn dẹp',
-                  models.TableStatus.cleaning,
-                  Icons.cleaning_services,
-                  Colors.blue,
                 ),
               ],
             ),
@@ -325,6 +339,15 @@ class _TableDetailDialogState extends State<TableDetailDialog> {
         return 'Đặt trước';
       case models.TableStatus.cleaning:
         return 'Đang dọn dẹp';
+    }
+  }
+
+  Color _getCustomerTypeColor(models.CustomerType customerType) {
+    switch (customerType) {
+      case models.CustomerType.registered:
+        return Colors.blue;
+      case models.CustomerType.guest:
+        return Colors.purple;
     }
   }
 }

@@ -8,7 +8,8 @@ from rest_framework import routers
 router = routers.DefaultRouter()
 router.register('users', views.UserView, basename='user')
 router.register('donhang', views.DonHangView, basename='donhang')
+router.register('tables', views.TableView, basename='table')
 
 urlpatterns = [
-    path('api/', include(router.urls)),
+    path('', include(router.urls)),
 ]
