@@ -13,8 +13,6 @@ class NguoiDungAdmin(UserAdmin):
     )
 
 
-
-
 admin.site.register(NguoiDung, NguoiDungAdmin)
 admin.site.register(MonAn)
 admin.site.register(DanhMuc)
