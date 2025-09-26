@@ -146,13 +146,41 @@ class DonHangSerializer(ModelSerializer):
         if suc_chua is None:
             raise serializers.ValidationError({ 'suc_chua': "Trường 'suc_chua' là bắt buộc" })
 
-        # find a matching table
-        ban_an = BanAn.objects.filter(suc_chua__gte=suc_chua, khu_vuc__exact=khu_vuc).order_by('suc_chua').first()
-        print('ban_an:', ban_an)
-        if not ban_an:
-            raise serializers.ValidationError({ 'non_field_errors': ["Không tìm thấy bàn ăn phù hợp"] })
+        ngay_dat = data.get('ngay_dat')
+        if not ngay_dat:
+            raise serializers.ValidationError({ 'ngay_dat': "Trường 'ngay_dat' là bắt buộc" })
 
-        data['ban_an'] = ban_an
+        # Determine slot based on hour
+        hour = ngay_dat.hour
+        if 8 <= hour < 14:
+            slot = 'morning'
+            start_hour, end_hour = 8, 14
+        elif 14 <= hour < 20:
+            slot = 'afternoon'
+            start_hour, end_hour = 14, 20
+        elif 20 <= hour < 24:
+            slot = 'evening'
+            start_hour, end_hour = 20, 24
+        else:
+            raise serializers.ValidationError({ 'ngay_dat': "Thời gian đặt phải trong khoảng 8:00 - 24:00" })
+
+        # find a matching table
+        available_tables = BanAn.objects.filter(suc_chua__gte=suc_chua, khu_vuc__exact=khu_vuc)
+        for ban_an in available_tables.order_by('suc_chua'):
+            # Check if table is available in this slot
+            active_reservations = DonHang.objects.filter(
+                ban_an=ban_an, 
+                trang_thai__in=['pending', 'confirmed'],
+                ngay_dat__date=ngay_dat.date(),
+                ngay_dat__hour__gte=start_hour,
+                ngay_dat__hour__lt=end_hour if end_hour != 24 else 24
+            ).exists()
+            if not active_reservations:
+                # Found available table
+                data['ban_an'] = ban_an
+                break
+        else:
+            raise serializers.ValidationError({ 'non_field_errors': ["Không tìm thấy bàn ăn phù hợp hoặc bàn đã được đặt trong khung giờ này"] })
 
         khach_hang = self.context['request'].user   # object NguoiDung
         data['khach_hang'] = khach_hang
