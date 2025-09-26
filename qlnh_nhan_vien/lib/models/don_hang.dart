@@ -117,12 +117,16 @@ class BanAn {
   final int soBan;
   final int sucChua;
   final String khuVuc;
+  final String? status; // e.g. 'occupied' | 'available'
+  final CurrentCustomer? currentCustomer;
 
   BanAn({
     required this.id,
     required this.soBan,
     required this.sucChua,
     required this.khuVuc,
+    this.status,
+    this.currentCustomer,
   });
 
   factory BanAn.fromJson(Map<String, dynamic> json) {
@@ -131,6 +135,10 @@ class BanAn {
       soBan: json['so_ban'],
       sucChua: json['suc_chua'],
       khuVuc: json['khu_vuc'],
+      status: json['status'],
+      currentCustomer: json['current_customer'] != null
+          ? CurrentCustomer.fromJson(json['current_customer'])
+          : null,
     );
   }
 
@@ -140,6 +148,36 @@ class BanAn {
       'so_ban': soBan,
       'suc_chua': sucChua,
       'khu_vuc': khuVuc,
+      'status': status,
+      'current_customer': currentCustomer?.toJson(),
+    };
+  }
+}
+
+class CurrentCustomer {
+  final String type; // 'registered' or 'guest'
+  final String name;
+  final String phone;
+
+  CurrentCustomer({
+    required this.type,
+    required this.name,
+    required this.phone,
+  });
+
+  factory CurrentCustomer.fromJson(Map<String, dynamic> json) {
+    return CurrentCustomer(
+      type: json['type'] ?? '',
+      name: json['name'] ?? '',
+      phone: json['phone'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'type': type,
+      'name': name,
+      'phone': phone,
     };
   }
 }

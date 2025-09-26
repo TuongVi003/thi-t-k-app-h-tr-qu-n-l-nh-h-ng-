@@ -227,7 +227,6 @@ class AuthService {
           'Authorization': token.authorizationHeader,
         },
       ).timeout(const Duration(seconds: timeout));
-      print('Get hereeeeeeeeeeeeeeeeeeeeeeeeeeeeeê 2222');
 
       if (response.statusCode == 200) {
         final userData = json.decode(response.body);
