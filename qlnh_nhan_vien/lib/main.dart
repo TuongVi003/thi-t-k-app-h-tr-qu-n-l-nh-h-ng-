@@ -77,7 +77,7 @@ class MyApp extends StatelessWidget {
           foregroundColor: Colors.white,
         ),
       ),
-      home: const AuthWrapper(),
+      home: const LoginScreen(),
     );
   }
 }

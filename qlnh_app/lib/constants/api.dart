@@ -9,8 +9,14 @@ class ApiEndpoints {
   // Đặt bàn
   static const String makeReservation = '$baseUrl/api/donhang/';
 
-  // static const String fetchUserProfile = '$baseUrl/api/user/profile';
-  // static const String updateUserProfile = '$baseUrl/api/user/update';
-  // static const String fetchItems = '$baseUrl/api/items';
-  // static const String fetchItemDetails = '$baseUrl/api/items/details';
+  // Lấy menu
+  static const String menu = '$baseUrl/api/menu/';
+  static const String categories = '$baseUrl/api/categories/';
+
+  // Takeaway orders
+  static const String takeawayOrders = '$baseUrl/api/takeaway/';
+  static String getTakeawayOrder(int id) => '$baseUrl/api/takeaway/$id/';
+  
+  // User profile
+  static const String userProfile = '$baseUrl/api/users/current-user/';
 }

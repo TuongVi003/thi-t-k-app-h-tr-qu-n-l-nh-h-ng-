@@ -56,7 +56,7 @@ enum DonHangStatus {
 class DonHang {
   final int id;
   final User khachHang;
-  final BanAn banAn;
+  final BanAn? banAn;
   final DonHangStatus trangThai;
   final DateTime ngayDat;
   final dynamic khachVangLai; // có thể null
@@ -64,7 +64,7 @@ class DonHang {
   DonHang({
     required this.id,
     required this.khachHang,
-    required this.banAn,
+    this.banAn,
     required this.trangThai,
     required this.ngayDat,
     this.khachVangLai,
@@ -74,7 +74,7 @@ class DonHang {
     return DonHang(
       id: json['id'],
       khachHang: User.fromJson(json['khach_hang']),
-      banAn: BanAn.fromJson(json['ban_an']),
+      banAn: json['ban_an'] != null ? BanAn.fromJson(json['ban_an']) : null,
       trangThai: DonHangStatus.fromApiValue(json['trang_thai']),
       ngayDat: DateTime.parse(json['ngay_dat']),
       khachVangLai: json['khach_vang_lai'],
@@ -85,7 +85,7 @@ class DonHang {
     return {
       'id': id,
       'khach_hang': khachHang.toJson(),
-      'ban_an': banAn.toJson(),
+      'ban_an': banAn?.toJson(),
       'trang_thai': trangThai.apiValue,
       'ngay_dat': ngayDat.toIso8601String(),
       'khach_vang_lai': khachVangLai,

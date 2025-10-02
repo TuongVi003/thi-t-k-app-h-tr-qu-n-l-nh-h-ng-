@@ -1,3 +1,5 @@
+import '../utils/safe_parser.dart';
+
 class User {
   final int id;
   final String username;
@@ -5,6 +7,8 @@ class User {
   final String soDienThoai;
   final String loaiNguoiDung;
   final String chucVu;
+  final String? caLam;
+  final bool dangLamViec;
   final bool isActive;
   final DateTime? lastLogin;
   final DateTime dateJoined;
@@ -17,6 +21,8 @@ class User {
     required this.soDienThoai,
     required this.loaiNguoiDung,
     required this.chucVu,
+    this.caLam,
+    required this.dangLamViec,
     required this.isActive,
     this.lastLogin,
     required this.dateJoined,
@@ -25,13 +31,15 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'],
+      id: SafeParser.toInt(json['id']),
       username: json['username'],
       hoTen: json['ho_ten'] ?? '',
       soDienThoai: json['so_dien_thoai'] ?? '',
       loaiNguoiDung: json['loai_nguoi_dung'] ?? '',
       chucVu: json['chuc_vu'] ?? '',
-      isActive: json['is_active'] ?? true,
+      caLam: json['ca_lam'],
+      dangLamViec: SafeParser.toBool(json['dang_lam_viec']),
+      isActive: SafeParser.toBool(json['is_active'] ?? true),
       lastLogin: json['last_login'] != null 
           ? DateTime.parse(json['last_login']) 
           : null,
@@ -48,6 +56,8 @@ class User {
       'so_dien_thoai': soDienThoai,
       'loai_nguoi_dung': loaiNguoiDung,
       'chuc_vu': chucVu,
+      'ca_lam': caLam,
+      'dang_lam_viec': dangLamViec,
       'is_active': isActive,
       'last_login': lastLogin?.toIso8601String(),
       'date_joined': dateJoined.toIso8601String(),

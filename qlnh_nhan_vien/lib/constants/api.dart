@@ -13,6 +13,16 @@ class ApiEndpoints {
   // Ban An
   static const String banAnList = '$baseUrl/api/tables/';
   static String updateStatusTable(int id) => '$baseUrl/api/donhang/$id/update-status/';
+
+  // Takeaway Orders
+  static const String takeawayOrders = '$baseUrl/api/takeaway/';
+  static String acceptTakeawayOrder(int id) => '$baseUrl/api/takeaway/$id/accept-order/';
+  static String confirmTakeawayTime(int id) => '$baseUrl/api/takeaway/$id/confirm-time/';
+  static String updateTakeawayStatus(int id) => '$baseUrl/api/takeaway/$id/update-status/';
+
+  // User Management
+  static const String checkIn = '$baseUrl/api/users/check-in/';
+  static const String checkOut = '$baseUrl/api/users/check-out/';
 }
 
 class OAuth2Config {

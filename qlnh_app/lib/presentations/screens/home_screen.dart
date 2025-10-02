@@ -2,23 +2,32 @@ import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import 'reservation_screen.dart';
 import '../../models/model.dart';
-import '../widgets/menu_tab_widget.dart';
+import '../takeaway/menu_tab_widget.dart';
 import 'cart_page.dart';
 import 'order_history_page.dart';
 import 'profile_page.dart';
 
 
+
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final int initialIndex;
+
+  const HomeScreen({super.key, this.initialIndex = 0});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
+  late int _selectedIndex;
   List<CartItem> _cartItems = [];
   bool _showReservationTooltip = true;
+  
+    @override
+    void initState() {
+      super.initState();
+      _selectedIndex = widget.initialIndex;
+    }
 
   void _addToCart(MenuItem item) {
     setState(() {
@@ -57,6 +66,12 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _clearCart() {
+    setState(() {
+      _cartItems.clear();
+    });
+  }
+
   double get _totalPrice {
     return _cartItems.fold(0.0, (total, cartItem) => total + (cartItem.menuItem.price * cartItem.quantity));
   }
@@ -73,6 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onRemoveFromCart: _removeFromCart,
         onUpdateQuantity: _updateCartQuantity,
         totalPrice: _totalPrice,
+        onClearCart: _clearCart,
       ),
       OrderHistoryTab(),
       ProfileTab(),
@@ -126,12 +142,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // _selectedIndex is initialized from widget.initialIndex in initState
     return Stack(
       children: [
         Scaffold(
           appBar: AppBar(
             title: const Text(
-              'Nhà Hàng Delicious',
+              'Nhà Hàng Tường Vi',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
@@ -202,6 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       title: Text('Đặt bàn'),
                     ),
                   ),
+
                   const PopupMenuItem<String>(
                     value: 'profile',
                     child: ListTile(

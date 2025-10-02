@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:qlnh_nhan_vien/screens/table_management_screen.dart';
 import 'package:qlnh_nhan_vien/screens/booking_management_screen.dart';
 import 'package:qlnh_nhan_vien/screens/order_screen.dart';
-import 'package:qlnh_nhan_vien/screens/statistics_screen.dart';
 import 'package:qlnh_nhan_vien/screens/login_screen.dart';
+import 'package:qlnh_nhan_vien/screens/takeaway_management_screen.dart';
 import 'package:qlnh_nhan_vien/services/auth_service.dart';
+import 'package:qlnh_nhan_vien/services/takeaway_service.dart';
 import 'package:qlnh_nhan_vien/models/user.dart';
+import 'package:qlnh_nhan_vien/models/takeaway_order.dart';
+
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -17,12 +20,15 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
   User? _currentUser;
+  bool _isWorkingShift = false;
+  bool _isLoadingShift = false;
+  List<TakeawayOrder> _pendingOrders = [];
   
   final List<Widget> _screens = [
     const TableManagementScreen(),
     const BookingManagementScreen(),
     const OrderScreen(),
-    // const StatisticsScreen(),
+    const TakeawayManagementScreen(),
     const Center(child: Text('Thống kê', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
   ];
 
@@ -36,7 +42,92 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final user = await AuthService.getStoredUser();
     setState(() {
       _currentUser = user;
+      _isWorkingShift = user?.dangLamViec ?? false;
     });
+    _loadTakeawayOrders();
+  }
+
+  Future<void> _refreshUserDataFromServer() async {
+    print('Starting user data refresh...');
+    try {
+      // Use the AuthService method to refresh user profile
+      final updatedUser = await AuthService.refreshUserProfile();
+      
+      if (updatedUser != null) {
+        setState(() {
+          _currentUser = updatedUser;
+          _isWorkingShift = updatedUser.dangLamViec;
+        });
+        
+        print('✅ User data refreshed successfully!');
+        print('New working status: ${updatedUser.dangLamViec}');
+      } else {
+        print('❌ Failed to refresh user profile');
+      }
+    } catch (e) {
+      print('❌ Error refreshing user data: $e');
+    }
+  }
+
+  Future<void> _loadTakeawayOrders() async {
+    try {
+      final orders = await TakeawayService.getTakeawayOrders();
+      setState(() {
+        _pendingOrders = orders.where((order) => order.trangThai == 'dang-doi').toList();
+      });
+    } catch (e) {
+      print('Error loading takeaway orders: $e');
+    }
+  }
+
+  Future<void> _handleCheckInOut() async {
+    if (_isLoadingShift) return;
+
+    setState(() {
+      _isLoadingShift = true;
+    });
+
+    try {
+      Map<String, dynamic> result;
+      String message;
+      
+      if (_isWorkingShift) {
+        // Checkout
+        result = await TakeawayService.checkOut();
+        message = 'Kết thúc ca thành công!';
+      } else {
+        // Checkin
+        result = await TakeawayService.checkIn();
+        message = 'Vào ca thành công!';
+      }
+
+      print('Check-in/out result: $result');
+      
+      // Refresh user data from server to get updated working status
+      await _refreshUserDataFromServer();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Có lỗi xảy ra: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoadingShift = false;
+      });
+    }
   }
 
   Future<void> _handleLogout() async {
@@ -155,11 +246,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: const Color(0xFF2E7D32),
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications, color: Colors.white),
-            onPressed: () {
-              // TODO: Hiển thị thông báo
-            },
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications, color: Colors.white),
+                onPressed: () {
+                  // Navigate to takeaway orders
+                  setState(() {
+                    _selectedIndex = 3; // Takeaway tab
+                  });
+                },
+              ),
+              if (_pendingOrders.isNotEmpty)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      '${_pendingOrders.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.account_circle, color: Colors.white),
@@ -167,6 +289,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               switch (value) {
                 case 'profile':
                   _showUserProfile();
+                  break;
+                case 'checkinout':
+                  _handleCheckInOut();
                   break;
                 case 'logout':
                   _handleLogout();
@@ -180,7 +305,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     const Icon(Icons.person),
                     const SizedBox(width: 8),
-                    Text(_currentUser?.hoTen ?? 'Thông tin'),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_currentUser?.hoTen ?? 'Thông tin'),
+                        Text(
+                          _isWorkingShift ? 'Đang trong ca' : 'Ngoài ca',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _isWorkingShift ? Colors.green : Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                value: 'checkinout',
+                child: Row(
+                  children: [
+                    Icon(
+                      _isWorkingShift ? Icons.logout : Icons.login,
+                      color: _isWorkingShift ? Colors.red : Colors.green,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _isWorkingShift ? 'Kết thúc ca' : 'Vào ca',
+                      style: TextStyle(
+                        color: _isWorkingShift ? Colors.red : Colors.green,
+                      ),
+                    ),
+                    if (_isLoadingShift)
+                      const Padding(
+                        padding: EdgeInsets.only(left: 8),
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -222,6 +387,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.restaurant_menu),
             label: 'Order',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.takeout_dining),
+            label: 'Mang về',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.analytics),

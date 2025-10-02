@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
-from .models import NguoiDung, BanAn, DonHang
+from .models import NguoiDung, BanAn, DonHang, Order, ChiTietOrder, MonAn, DanhMuc
 
 
 class UserSerializer(ModelSerializer):
@@ -194,4 +194,81 @@ class DonHangSerializer(ModelSerializer):
         model = DonHang
         fields = '__all__'
 
+
+class MonAnSerializer(ModelSerializer):
+    danh_muc_ten = serializers.CharField(source='danh_muc.ten_danh_muc', read_only=True)
+    
+    class Meta:
+        model = MonAn
+        fields = '__all__'
+
+
+class ChiTietOrderSerializer(ModelSerializer):
+    mon_an_detail = MonAnSerializer(source='mon_an', read_only=True)
+    
+    class Meta:
+        model = ChiTietOrder
+        fields = '__all__'
+
+
+class OrderSerializer(ModelSerializer):
+    chi_tiet_order = ChiTietOrderSerializer(many=True, read_only=True, source='chitietorder_set')
+    khach_hang_detail = UserSerializer(source='khach_hang', read_only=True)
+    nhan_vien_detail = UserSerializer(source='nhan_vien', read_only=True)
+    tong_tien = serializers.SerializerMethodField()
+    
+    def get_tong_tien(self, obj):
+        return sum([item.so_luong * item.gia for item in obj.chitietorder_set.all()])
+    
+    class Meta:
+        model = Order
+        fields = '__all__'
+
+
+class TakeawayOrderCreateSerializer(ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
+    mon_an_list = serializers.ListField(write_only=True)
+
+    class Meta:
+        model = Order
+        fields = ['id', 'ghi_chu', 'mon_an_list']
+    
+    def create(self, validated_data):
+        from django.utils import timezone
+        
+        mon_an_list = validated_data.pop('mon_an_list')
+        
+        # Tạo order takeaway
+        order = Order.objects.create(
+            khach_hang=self.context['request'].user,
+            loai_order='takeaway',
+            trang_thai='pending',
+            order_time=timezone.now(),
+            **validated_data
+        )
+        
+        # Tạo chi tiết order
+        for item in mon_an_list:
+            mon_an = MonAn.objects.get(id=item['mon_an_id'])
+            ChiTietOrder.objects.create(
+                order=order,
+                mon_an=mon_an,
+                so_luong=item['so_luong'],
+                gia=mon_an.gia
+            )
+        
+        return order
+
+
+class OrderStatusUpdateSerializer(serializers.Serializer):
+    trang_thai = serializers.ChoiceField(choices=Order.ORDER_STATUS)
+    thoi_gian_lay = serializers.IntegerField(required=False)
+    ghi_chu = serializers.CharField(required=False, allow_blank=True)
+
+
+
+class DanhMucSerializer(ModelSerializer):
+    class Meta:
+        model = DanhMuc
+        fields = '__all__'
 

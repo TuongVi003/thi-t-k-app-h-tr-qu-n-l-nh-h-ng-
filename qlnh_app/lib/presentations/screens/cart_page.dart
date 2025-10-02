@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:qlnh_app/models/cart_item.dart';
+import 'package:qlnh_app/models/takeaway_order.dart';
+import 'package:qlnh_app/services/takeaway_service.dart';
 import 'login_screen.dart';
 import 'package:qlnh_app/services/auth_service.dart';
+import '../takeaway/takeaway_success_screen.dart';
+import 'package:qlnh_app/constants/utils.dart';
 
 
-class CartTab extends StatelessWidget {
+class CartTab extends StatefulWidget {
   final List<CartItem> cartItems;
   final Function(String) onRemoveFromCart;
   final Function(String, int) onUpdateQuantity;
   final double totalPrice;
+  final VoidCallback? onClearCart;
 
   const CartTab({
     super.key,
@@ -16,7 +21,98 @@ class CartTab extends StatelessWidget {
     required this.onRemoveFromCart,
     required this.onUpdateQuantity,
     required this.totalPrice,
+    this.onClearCart,
   });
+
+  @override
+  State<CartTab> createState() => _CartTabState();
+}
+
+class _CartTabState extends State<CartTab> {
+  final TextEditingController _noteController = TextEditingController();
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleCheckout(BuildContext context) async {
+    // Check login
+    if (!AuthService.instance.isLoggedIn) {
+      final result = await Navigator.push<bool?>(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+      );
+      if (result != true && !AuthService.instance.isLoggedIn) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Bạn cần đăng nhập để đặt hàng')),
+          );
+        }
+        return;
+      }
+    }
+
+    // Show loading
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    try {
+      // Convert CartItem to TakeawayCartItem
+      final takeawayItems = widget.cartItems.map((cartItem) {
+        return TakeawayCartItem(
+          monAnId: int.parse(cartItem.menuItem.id),
+          tenMon: cartItem.menuItem.name,
+          gia: cartItem.menuItem.price,
+          hinhAnh: cartItem.menuItem.imageUrl,
+          moTa: cartItem.menuItem.description,
+          soLuong: cartItem.quantity,
+        );
+      }).toList();
+
+      // Create takeaway order
+      final order = await TakeawayService.createTakeawayOrder(
+        cartItems: takeawayItems,
+        ghiChu: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+      );
+
+      // Close loading
+      if (context.mounted) {
+        Navigator.pop(context);
+        
+        // Clear cart
+        widget.onClearCart?.call();
+        
+        // Navigate to success screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TakeawaySuccessScreen(order: order),
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading
+      if (context.mounted) {
+        Navigator.pop(context);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi đặt hàng: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +162,7 @@ class CartTab extends StatelessWidget {
               ),
             ),
           
-          if (cartItems.isEmpty)
+          if (widget.cartItems.isEmpty)
             Expanded(
               child: Center(
                 child: Column(
@@ -100,9 +196,9 @@ class CartTab extends StatelessWidget {
           else ...[
             Expanded(
               child: ListView.builder(
-                itemCount: cartItems.length,
+                itemCount: widget.cartItems.length,
                 itemBuilder: (context, index) {
-                  final cartItem = cartItems[index];
+                  final cartItem = widget.cartItems[index];
                   final item = cartItem.menuItem;
                   return Card(
                     margin: const EdgeInsets.only(bottom: 8),
@@ -110,19 +206,43 @@ class CartTab extends StatelessWidget {
                       padding: const EdgeInsets.all(12.0),
                       child: Row(
                         children: [
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              color: Colors.orange.shade100,
-                              borderRadius: BorderRadius.circular(8),
+                          if (cartItem.menuItem.imageUrl.isEmpty)
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.restaurant,
+                                size: 30,
+                                color: Colors.orange.shade700,
+                              ),
+                            )
+                          else
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  Utils.imageUrl(cartItem.menuItem.imageUrl),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => Container(
+                                    color: Colors.orange.shade100,
+                                    child: Icon(
+                                      Icons.restaurant,
+                                      size: 30,
+                                      color: Colors.orange.shade700,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                            child: Icon(
-                              Icons.restaurant,
-                              size: 30,
-                              color: Colors.orange.shade700,
-                            ),
-                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -150,7 +270,7 @@ class CartTab extends StatelessWidget {
                           Row(
                             children: [
                               IconButton(
-                                onPressed: () => onUpdateQuantity(item.id, cartItem.quantity - 1),
+                                onPressed: () => widget.onUpdateQuantity(item.id, cartItem.quantity - 1),
                                 icon: const Icon(Icons.remove_circle_outline),
                                 color: Colors.grey.shade600,
                               ),
@@ -162,14 +282,14 @@ class CartTab extends StatelessWidget {
                                 ),
                               ),
                               IconButton(
-                                onPressed: () => onUpdateQuantity(item.id, cartItem.quantity + 1),
+                                onPressed: () => widget.onUpdateQuantity(item.id, cartItem.quantity + 1),
                                 icon: const Icon(Icons.add_circle_outline),
                                 color: Colors.orange.shade700,
                               ),
                             ],
                           ),
                           IconButton(
-                            onPressed: () => onRemoveFromCart(item.id),
+                            onPressed: () => widget.onRemoveFromCart(item.id),
                             icon: const Icon(Icons.delete_outline),
                             color: Colors.red.shade400,
                           ),
@@ -178,6 +298,39 @@ class CartTab extends StatelessWidget {
                     ),
                   );
                 },
+              ),
+            ),
+            
+            // Note input
+            Card(
+              margin: const EdgeInsets.only(bottom: 16),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Ghi chú (tùy chọn)',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _noteController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'Ví dụ: Không hành, ít cay, giao nhanh...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.all(12),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             
@@ -201,7 +354,7 @@ class CartTab extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '${totalPrice.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} ₫',
+                        '${widget.totalPrice.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} ₫',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -214,25 +367,7 @@ class CartTab extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                        onPressed: () async {
-                          if (!AuthService.instance.isLoggedIn) {
-                            final result = await Navigator.push<bool?>(
-                              context,
-                              MaterialPageRoute(builder: (context) => const LoginScreen()),
-                            );
-                            if (result != true && !AuthService.instance.isLoggedIn) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Bạn cần đăng nhập để đặt hàng')),
-                              );
-                              return;
-                            }
-                          }
-
-                          // proceed to checkout (placeholder)
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Tiến hành đặt hàng (tính năng đang phát triển)')),
-                          );
-                        },
+                      onPressed: () => _handleCheckout(context),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orange.shade700,
                         foregroundColor: Colors.white,
@@ -242,7 +377,7 @@ class CartTab extends StatelessWidget {
                         ),
                       ),
                       child: const Text(
-                        'Đặt hàng',
+                        'Đặt hàng mang về',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
