@@ -170,7 +170,7 @@ class TakeawayOrderView(viewsets.ModelViewSet):
             return Order.objects.select_related('khach_hang', 'nhan_vien', 'ban_an').prefetch_related('chitietorder_set__mon_an').filter(loai_order='takeaway', khach_hang=user).order_by('-id')
         elif user.loai_nguoi_dung == 'nhan_vien':
             # Nhân viên xem tất cả đơn takeaway - luôn lấy dữ liệu mới nhất
-            return Order.objects.select_related('khach_hang', 'nhan_vien', 'ban_an').prefetch_related('chitietorder_set__mon_an').filter(loai_order='takeaway').order_by('-id')
+            return Order.objects.select_related('khach_hang', 'nhan_vien', 'ban_an').prefetch_related('chitietorder_set__mon_an').filter(loai_order='takeaway').exclude(trang_thai__in=['canceled']).order_by('-id')
         return Order.objects.none()
     
     @action(detail=True, methods=['patch'], url_path='accept-order')

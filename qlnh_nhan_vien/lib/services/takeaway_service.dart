@@ -58,8 +58,8 @@ class TakeawayService {
       ).timeout(const Duration(seconds: timeout));
 
       if (response.statusCode == 200) {
-        final jsonData = json.decode(response.body);
-        return TakeawayOrder.fromJson(jsonData);
+        // Gọi lại API GET để lấy order đầy đủ sau khi accept
+        return await getTakeawayOrderById(orderId);
       } else {
         final errorData = json.decode(response.body);
         throw Exception(errorData['error'] ?? 'Failed to accept order');
@@ -90,8 +90,8 @@ class TakeawayService {
       ).timeout(const Duration(seconds: timeout));
 
       if (response.statusCode == 200) {
-        final jsonData = json.decode(response.body);
-        return TakeawayOrder.fromJson(jsonData);
+        // Gọi lại API GET để lấy order đầy đủ sau khi confirm time
+        return await getTakeawayOrderById(orderId);
       } else {
         final errorData = json.decode(response.body);
         throw Exception(errorData['error'] ?? 'Failed to confirm time');
@@ -120,11 +120,11 @@ class TakeawayService {
           'trang_thai': status.value,
         }),
       ).timeout(const Duration(seconds: timeout));
-      print('DEBUG: Response status code: ${response.body}');
 
       if (response.statusCode == 200) {
-        final jsonData = json.decode(response.body);
-        return TakeawayOrder.fromJson(jsonData);
+        // API chỉ trả về { trang_thai, thoi_gian_lay, ghi_chu }
+        // Gọi lại API GET để lấy order đầy đủ
+        return await getTakeawayOrderById(orderId);
       } else {
         final errorData = json.decode(response.body);
         throw Exception(errorData['error'] ?? 'Failed to update status');
@@ -132,6 +132,34 @@ class TakeawayService {
     } catch (e) {
       print('DEBUG: Error in updateStatus - takeaway_service.dart: $e');
       throw Exception('$e');
+    }
+  }
+
+  /// Lấy chi tiết một đơn takeaway theo ID
+  static Future<TakeawayOrder> getTakeawayOrderById(int orderId) async {
+    try {
+      final token = await AuthService.getValidToken();
+      
+      if (token == null) {
+        throw Exception('Không có token hợp lệ. Vui lòng đăng nhập lại.');
+      }
+
+      final response = await http.get(
+        Uri.parse('${ApiEndpoints.takeawayOrders}$orderId/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token.authorizationHeader,
+        },
+      ).timeout(const Duration(seconds: timeout));
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        return TakeawayOrder.fromJson(jsonData);
+      } else {
+        throw Exception('Failed to load order detail: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching order detail: $e');
     }
   }
 
