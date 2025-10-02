@@ -206,7 +206,21 @@ class AuthService {
     return token;
   }
 
-  // Private methods
+  // Refresh user profile từ server
+  static Future<User?> refreshUserProfile() async {
+    try {
+      final token = await getValidToken();
+      if (token == null) return null;
+
+      await _fetchAndSaveUserProfile(token);
+      return await getStoredUser();
+    } catch (e) {
+      print('Error refreshing user profile: $e');
+      return null;
+    }
+  }
+
+  // Lưu token vào storage
   static Future<void> _saveToken(AuthToken token) async {
     try {
       final prefs = await SharedPreferences.getInstance();

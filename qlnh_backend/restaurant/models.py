@@ -18,7 +18,14 @@ class NguoiDung(AbstractUser):
         ('chef', 'Đầu bếp'),
         ('cashier', 'Thu ngân'),
     )
+    CA_LAM = (
+        ('sang', 'Ca sáng (8:00-14:00)'),
+        ('chieu', 'Ca chiều (14:00-20:00)'),
+        ('dem', 'Ca đêm (20:00-24:00)'),
+    )
     chuc_vu = models.CharField(max_length=50, choices=VAI_TRO, default='customer')
+    ca_lam = models.CharField(max_length=20, choices=CA_LAM, null=True, blank=True)
+    dang_lam_viec = models.BooleanField(default=False, help_text="Nhân viên có đang trong ca làm việc")
     
     def __str__(self):
         return f"{self.ho_ten} - {self.loai_nguoi_dung}"
@@ -46,6 +53,7 @@ class BanAn(models.Model):
     def __str__(self):
         return f"Bàn {self.so_ban} (tối đa {self.suc_chua} người)"
 
+
 #Danh mục
 class DanhMuc(models.Model):
     ten_danh_muc = models.CharField(max_length=100)
@@ -59,7 +67,7 @@ class MonAn(models.Model):
     ten_mon = models.CharField(max_length=100)
     gia = models.DecimalField(max_digits=10, decimal_places=2)
     mo_ta = models.TextField(blank=True, null=True)
-    danh_muc = models.ForeignKey(DanhMuc, on_delete=models.CASCADE)
+    danh_muc = models.ForeignKey(DanhMuc, on_delete=models.CASCADE, related_name='mon_an', null=True, blank=True)
     available = models.BooleanField(default=True, help_text="Có sẵn để gọi món")
     hinh_anh = models.CharField(max_length=255, blank=True, null=True)
 
@@ -86,14 +94,33 @@ class DonHang(models.Model):
 
 # Chi tiết đơn hàng (món ăn trong đơn)
 class Order(models.Model):
-    ban_an = models.ForeignKey(BanAn, on_delete=models.CASCADE)
-    khach_hang = models.ForeignKey(NguoiDung, on_delete=models.CASCADE, related_name='orders', null=True)
-    khach_vang_lai = models.ForeignKey(KhachVangLai, on_delete=models.SET_NULL, null=True, related_name='orders')
-    nhan_vien = models.ForeignKey(NguoiDung, on_delete=models.SET_NULL, null=True, blank=True)
+    ban_an = models.ForeignKey(BanAn, on_delete=models.CASCADE, null=True, blank=True)
+    khach_hang = models.ForeignKey(NguoiDung, on_delete=models.CASCADE, related_name='orders', null=True, blank=True)
+    khach_vang_lai = models.ForeignKey(KhachVangLai, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
+    nhan_vien = models.ForeignKey(NguoiDung, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders_handled')
     order_time = models.DateTimeField(auto_now_add=True)
+    LOAI_ORDER = (
+        ('dine_in', 'Ăn tại chỗ'),
+        ('takeaway', 'Mang về'),
+    )
+    loai_order = models.CharField(max_length=20, choices=LOAI_ORDER, default='dine_in')
+    ORDER_STATUS = (
+        ('pending', 'Chờ xác nhận'),
+        ('confirmed', 'Đã xác nhận'),
+        ('cooking', 'Đang nấu'),
+        ('ready', 'Sẵn sàng'),
+        ('completed', 'Hoàn thành'),
+        ('canceled', 'Đã hủy'),
+    )
+    trang_thai = models.CharField(max_length=20, choices=ORDER_STATUS, default='pending')
+    thoi_gian_lay = models.IntegerField(null=True, blank=True, help_text="Thời gian ước tính lấy món (phút)")
+    thoi_gian_san_sang = models.DateTimeField(null=True, blank=True, help_text="Thời gian món sẵn sàng")
+    ghi_chu = models.TextField(blank=True, null=True)
 
     def __str__(self):
-        return f'Order #{self.id} - Bàn {self.ban_an.so_ban}'
+        if self.loai_order == 'takeaway':
+            return f'Takeaway Order #{self.id}'
+        return f'Order #{self.id} - Bàn {self.ban_an.so_ban if self.ban_an else "N/A"}'
     
 
 class ChiTietOrder(models.Model):
@@ -139,7 +166,6 @@ class NguyenLieu(models.Model):
 class NguyenLieuLog(models.Model):
     nguyen_lieu = models.ForeignKey(NguyenLieu, on_delete=models.CASCADE)
     so_luong_thay_doi = models.FloatField()
-    mon_an = models.ForeignKey(MonAn, on_delete=models.SET_NULL, null=True, blank=True)
     loai = models.CharField(max_length=50, choices=(('nhap', 'Nhập kho'), ('su_dung', 'Sử dụng'), ('huy', 'Hủy bỏ')))
 
     def __str__(self):

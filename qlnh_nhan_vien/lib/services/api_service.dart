@@ -89,7 +89,7 @@ class ApiService {
       // Tạo Set để track các bàn từ API
       Set<int> allTableNumbers = {};
       for (var donHang in donHangList) {
-        allTableNumbers.add(donHang.banAn.soBan);
+        allTableNumbers.add(donHang.banAn?.soBan ?? 0);
       }
       
       // Thêm các bàn từ 1 đến 20 (giả sử có 20 bàn)
@@ -109,7 +109,7 @@ class ApiService {
       
       // Xử lý DonHang từ API
       for (var donHang in donHangList) {
-        final tableNumber = donHang.banAn.soBan;
+        final tableNumber = donHang.banAn?.soBan ?? 0;
         
         // Kiểm tra trạng thái đơn hàng
         models.TableStatus status;
@@ -127,12 +127,12 @@ class ApiService {
         
         // Chỉ cập nhật bàn nếu có đơn hàng active (pending/confirmed)
         if (donHang.trangThai == DonHangStatus.pending || donHang.trangThai == DonHangStatus.confirmed) {
-          String khuVucDisplay = _getKhuVucDisplay(donHang.banAn.khuVuc);
+          String khuVucDisplay = _getKhuVucDisplay(donHang.banAn?.khuVuc ?? '');
           
           tableMap[tableNumber] = models.Table(
-            id: donHang.banAn.id.toString(),
-            number: donHang.banAn.soBan,
-            capacity: donHang.banAn.sucChua,
+            id: donHang.banAn?.id.toString() ?? '',
+            number: donHang.banAn?.soBan ?? 0,
+            capacity: donHang.banAn?.sucChua ?? 0,
             status: status,
             customerName: donHang.khachHang.hoTen,
             customerPhone: donHang.khachHang.soDienThoai,
