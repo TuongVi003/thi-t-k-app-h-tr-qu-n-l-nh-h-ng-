@@ -169,16 +169,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Thông tin nhân viên'),
         content: _currentUser != null
-            ? Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildInfoRow('Họ tên:', _currentUser!.hoTen),
-                  _buildInfoRow('Username:', _currentUser!.username),
-                  _buildInfoRow('Số điện thoại:', _currentUser!.soDienThoai),
-                  _buildInfoRow('Chức vụ:', _getChucVuDisplay(_currentUser!.chucVu)),
-                  _buildInfoRow('Email:', _currentUser!.email ?? 'Chưa có'),
-                ],
+            ? SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildInfoRow('ID:', _currentUser!.id.toString()),
+                    _buildInfoRow('Username:', _currentUser!.username),
+                    _buildInfoRow('Họ tên:', _currentUser!.hoTen),
+                    _buildInfoRow('Số điện thoại:', _currentUser!.soDienThoai),
+                    _buildInfoRow('Loại người dùng:', _getChucVuDisplay(_currentUser!.loaiNguoiDung)),
+                    _buildInfoRow('Chức vụ:', _getChucVuDisplay(_currentUser!.chucVu)),
+                    _buildInfoRow('Ca làm:', _getCaLamDisplay(_currentUser!.caLam)),
+                    _buildInfoRow('Đang làm việc:', _currentUser!.dangLamViec ? 'Có' : 'Không'),
+                    _buildInfoRow('Trạng thái hoạt động:', _currentUser!.isActive ? 'Hoạt động' : 'Không hoạt động'),
+                    _buildInfoRow('Đăng nhập lần cuối:', _currentUser!.lastLogin != null 
+                        ? '${_currentUser!.lastLogin!.day}/${_currentUser!.lastLogin!.month}/${_currentUser!.lastLogin!.year} ${_currentUser!.lastLogin!.hour}:${_currentUser!.lastLogin!.minute.toString().padLeft(2, '0')}' 
+                        : 'Chưa đăng nhập'),
+                    _buildInfoRow('Ngày tham gia:', '${_currentUser!.dateJoined.day}/${_currentUser!.dateJoined.month}/${_currentUser!.dateJoined.year}'),
+                    _buildInfoRow('Email:', _currentUser!.email ?? 'Chưa có'),
+                  ],
+                ),
               )
             : const CircularProgressIndicator(),
         actions: [
@@ -219,6 +230,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   String _getChucVuDisplay(String chucVu) {
     switch (chucVu) {
+      case 'customer':
+        return 'Khách hàng';
       case 'waiter':
         return 'Phục vụ';
       case 'manager':
@@ -229,6 +242,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return 'Thu ngân';
       default:
         return chucVu;
+    }
+  }
+
+  String _getCaLamDisplay(String? caLam) {
+    if (caLam == null) return 'Chưa có';
+    switch (caLam) {
+      case 'sang':
+        return 'Ca sáng (8:00-14:00)';
+      case 'chieu':
+        return 'Ca chiều (14:00-20:00)';
+      case 'dem':
+        return 'Ca đêm (20:00-24:00)';
+      default:
+        return caLam;
     }
   }
 
