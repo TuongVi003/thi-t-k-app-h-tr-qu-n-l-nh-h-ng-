@@ -84,7 +84,7 @@ class _MenuTabState extends State<MenuTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -215,152 +215,152 @@ class _MenuTabState extends State<MenuTab> {
           const SizedBox(height: 16),
 
           // Menu items
-          Expanded(
-            child: _isLoadingMenuItems
-                ? const Center(child: CircularProgressIndicator())
-                : _menuItems.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'Không có món ăn nào',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey,
-                          ),
+          _isLoadingMenuItems
+              ? const Center(child: CircularProgressIndicator())
+              : _menuItems.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Không có món ăn nào',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey,
                         ),
-                      )
-                    : ListView.builder(
-                        itemCount: _menuItems.length,
-                        itemBuilder: (context, index) {
-                          final item = _menuItems[index];
+                      ),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _menuItems.length,
+                      itemBuilder: (context, index) {
+                        final item = _menuItems[index];
 
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Row(
-                                children: [
-                                  // Menu item image
-                                  Container(
-                                    width: 80,
-                                    height: 80,
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange.shade100,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: item.hinhAnh != null && item.hinhAnh!.isNotEmpty
-                                          ? Builder(
-                                              builder: (context) {
-                                                final imageUrl = 'https://d9p0zhfk-8000.asse.devtunnels.ms/images/${item.hinhAnh!}';
-                                                return Image.network(
-                                                  imageUrl,
-                                                  width: 80,
-                                                  height: 80,
-                                                  fit: BoxFit.cover,
-                                                  errorBuilder: (context, error, stackTrace) {
-                                                    print('Image load error: $error');
-                                                    return Icon(
-                                                      Icons.restaurant,
-                                                      size: 40,
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Row(
+                              children: [
+                                // Menu item image
+                                Container(
+                                  width: 80,
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.shade100,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: item.hinhAnh != null && item.hinhAnh!.isNotEmpty
+                                        ? Builder(
+                                            builder: (context) {
+                                              final imageUrl = 'https://d9p0zhfk-8000.asse.devtunnels.ms/images/${item.hinhAnh!}';
+                                              return Image.network(
+                                                imageUrl,
+                                                width: 80,
+                                                height: 80,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error, stackTrace) {
+                                                  print('Image load error: $error');
+                                                  return Icon(
+                                                    Icons.restaurant,
+                                                    size: 40,
+                                                    color: Colors.orange.shade700,
+                                                  );
+                                                },
+                                                loadingBuilder: (context, child, loadingProgress) {
+                                                  if (loadingProgress == null) {
+                                                    print('Image loaded successfully: $imageUrl');
+                                                    return child;
+                                                  }
+                                                  return Center(
+                                                    child: CircularProgressIndicator(
+                                                      value: loadingProgress.expectedTotalBytes != null
+                                                          ? loadingProgress.cumulativeBytesLoaded /
+                                                              loadingProgress.expectedTotalBytes!
+                                                          : null,
+                                                      strokeWidth: 2,
                                                       color: Colors.orange.shade700,
-                                                    );
-                                                  },
-                                                  loadingBuilder: (context, child, loadingProgress) {
-                                                    if (loadingProgress == null) {
-                                                      print('Image loaded successfully: $imageUrl');
-                                                      return child;
-                                                    }
-                                                    return Center(
-                                                      child: CircularProgressIndicator(
-                                                        value: loadingProgress.expectedTotalBytes != null
-                                                            ? loadingProgress.cumulativeBytesLoaded /
-                                                                loadingProgress.expectedTotalBytes!
-                                                            : null,
-                                                        strokeWidth: 2,
-                                                        color: Colors.orange.shade700,
-                                                      ),
-                                                    );
-                                                  },
-                                                );
-                                              },
-                                            )
-                                          : Icon(
-                                              Icons.restaurant,
-                                              size: 40,
+                                                    ),
+                                                  );
+                                                },
+                                              );
+                                            },
+                                          )
+                                        : Icon(
+                                            Icons.restaurant,
+                                            size: 40,
+                                            color: Colors.orange.shade700,
+                                          ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+
+                                // Menu item details
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.tenMon,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        item.moTa,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            '${item.gia.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} ₫',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
                                               color: Colors.orange.shade700,
                                             ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-
-                                  // Menu item details
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          item.tenMon,
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
                                           ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          item.moTa,
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.grey.shade600,
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text(
-                                              '${item.gia.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} ₫',
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.orange.shade700,
+                                          ElevatedButton(
+                                            onPressed: () => _addToCart(item),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.orange.shade700,
+                                              foregroundColor: Colors.white,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 8,
                                               ),
                                             ),
-                                            ElevatedButton(
-                                              onPressed: () => _addToCart(item),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.orange.shade700,
-                                                foregroundColor: Colors.white,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: 16,
-                                                  vertical: 8,
-                                                ),
-                                              ),
-                                              child: const Text('Thêm'),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
+                                            child: const Text('Thêm'),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                          );
-                        },
-                      ),
-          ),
+                          ),
+                        );
+                      },
+                    ),
         ],
       ),
     );

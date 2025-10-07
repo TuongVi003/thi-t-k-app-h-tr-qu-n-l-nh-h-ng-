@@ -31,6 +31,12 @@ class NguoiDung(AbstractUser):
         return f"{self.ho_ten} - {self.loai_nguoi_dung}"
 
 
+class FCMDevice(models.Model):
+    user = models.ForeignKey(NguoiDung, on_delete=models.CASCADE, null=True, blank=True)
+    token = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 class KhachVangLai(models.Model):
     ho_ten = models.CharField(max_length=100)
     so_dien_thoai = models.CharField(max_length=15, unique=True)
@@ -128,14 +134,6 @@ class ChiTietOrder(models.Model):
     mon_an = models.ForeignKey(MonAn, on_delete=models.CASCADE)
     so_luong = models.IntegerField()
     gia = models.IntegerField()
-
-    TrangThaiMonAn = (
-        ('dang-doi', 'Chờ chế biến'),
-        ('dang-lam', 'Đang làm'),
-        ('hoan-thanh', 'Hoàn thành')
-    )
-    trang_thai = models.CharField(max_length=30, choices=TrangThaiMonAn, default='dang-doi')
-
 
     def __str__(self):
         return f"{self.so_luong} x {self.mon_an.ten_mon} (Order #{self.order.id})"

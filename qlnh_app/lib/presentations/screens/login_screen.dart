@@ -109,7 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Quản Lý Nhà Hàng',
+                      'Nhà Hàng Tường Vi',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: Colors.grey.shade800,

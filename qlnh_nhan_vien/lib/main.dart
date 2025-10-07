@@ -2,13 +2,135 @@ import 'package:flutter/material.dart';
 import 'package:qlnh_nhan_vien/screens/dashboard_screen.dart';
 import 'package:qlnh_nhan_vien/screens/login_screen.dart';
 import 'package:qlnh_nhan_vien/services/auth_service.dart';
+import 'dart:convert';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:http/http.dart' as http;
+import 'firebase_background_handler.dart';
+import 'package:qlnh_nhan_vien/constants/api.dart';
 
-void main() {
-  runApp(const MyApp());
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
+  // background handler
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+  // local notifications init (Android channel)
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+  final InitializationSettings initializationSettings =
+      InitializationSettings(android: initializationSettingsAndroid);
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings,
+      onDidReceiveNotificationResponse: (payload) {
+    // xử lý tap notification (khi app foreground/local)
+    if (payload != null) {
+
+    }
+  });
+
+  runApp(MyApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+
+class MyApp extends StatefulWidget {
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    requestPermission();
+    configureListeners();
+    getAndRegisterToken();
+  }
+
+  void requestPermission() async {
+    NotificationSettings settings = await _messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+      provisional: false,
+    );
+    print('User granted permission: ${settings.authorizationStatus}');
+  }
+
+  void configureListeners() {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      // app foreground
+      print('onMessage: ${message.notification?.title}');
+      showLocalNotification(message);
+    });
+
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      // user tap notification -> handle navigation
+      print('onMessageOpenedApp: ${message.data}');
+      // Navigator.of(context).pushNamed('/order', arguments: message.data);
+    });
+  }
+
+  void showLocalNotification(RemoteMessage message) async {
+    RemoteNotification? notification = message.notification;
+    AndroidNotification? android = message.notification?.android;
+    if (notification != null) {
+      const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+        'default_channel',
+        'Default',
+        channelDescription: 'Default channel',
+        importance: Importance.max,
+        priority: Priority.high,
+      );
+      const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
+      await flutterLocalNotificationsPlugin.show(
+        notification.hashCode,
+        notification.title,
+        notification.body,
+        platformDetails,
+        payload: jsonEncode(message.data),
+      );
+    }
+  }
+
+  void getAndRegisterToken() async {
+    try {
+      String? token = await _messaging.getToken();
+      print('FCM token: $token');
+      if (token != null) {
+        await registerTokenToBackend(token);
+      }
+
+      // lắng nghe khi token refresh
+      FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+        registerTokenToBackend(newToken);
+      });
+    } catch (e) {
+      print('Token error: $e');
+    }
+  }
+
+  Future<void> registerTokenToBackend(String token) async {
+    final uri = Uri.parse('${ApiEndpoints.baseUrl}/api/fcm-token/');
+    // nếu cần auth, gửi Bearer token
+    final response = await http.post(uri,
+        headers: {
+          'Content-Type': 'application/json',
+          // 'Authorization': 'Bearer <user_jwt>'
+        },
+        body: jsonEncode({'token': token}));
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      print('Token registered on backend');
+    } else {
+      print('Register token failed: ${response.statusCode} ${response.body}');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +202,11 @@ class MyApp extends StatelessWidget {
       home: const LoginScreen(),
     );
   }
+
 }
+
+
+
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});

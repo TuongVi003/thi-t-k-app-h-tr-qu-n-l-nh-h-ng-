@@ -15,5 +15,7 @@ router.register('categories', views.DanhMucView, basename='category')
 
 
 urlpatterns = [
+    path('fcm-token/', views.register_fcm_token, name='fcm-token'),
     path('', include(router.urls)),
+    
 ]

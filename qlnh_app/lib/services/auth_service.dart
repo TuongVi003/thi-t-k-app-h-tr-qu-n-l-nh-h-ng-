@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../constants/api.dart';
 
 class AuthService {
@@ -53,6 +54,8 @@ class AuthService {
             if (token != null && token is String && token.isNotEmpty) {
               _accessToken = token;
               _isLoggedIn = true;
+              // Register FCM token after successful login
+              registerFcmToken();
               return {'ok': true, 'message': 'OK'};
             }
             return {'ok': false, 'message': 'No access token in response'};
@@ -108,5 +111,33 @@ class AuthService {
   void logout() {
     _isLoggedIn = false;
     _accessToken = null;
+  }
+
+  /// Register FCM token to backend
+  Future<void> registerFcmToken() async {
+    try {
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken == null) return;
+      print('FCM Token1111111111: $_accessToken');
+
+      final uri = Uri.parse('${ApiEndpoints.baseUrl}/api/fcm-token/');
+      final headers = {
+        'Content-Type': 'application/json',
+        if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
+      };
+      final response = await http.post(
+        uri,
+        headers: headers,
+        body: jsonEncode({'token': fcmToken}),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('FCM token registered successfully: ${response.body}');
+      } else {
+        print('Failed to register FCM token: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error registering FCM token: $e');
+    }
   }
 }

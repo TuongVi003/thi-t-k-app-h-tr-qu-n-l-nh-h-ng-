@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'dashboard_screen.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../constants/api.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -25,6 +29,53 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  Future<void> _registerFCMToken() async {
+    try {
+      final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+      String? token = await _messaging.getToken();
+      if (token != null) {
+        await _registerTokenToBackend(token);
+      }
+    } catch (e) {
+      print('Error registering FCM token: $e');
+    }
+  }
+
+  Future<void> _registerTokenToBackend(String token) async {
+    final uri = Uri.parse('${ApiEndpoints.baseUrl}/api/fcm-token/');
+    
+    // Lấy JWT token từ AuthService
+    final authToken = await AuthService.getStoredToken();
+    
+    final headers = {
+      'Content-Type': 'application/json',
+    };
+    
+    // Thêm Authorization header nếu có token
+    if (authToken != null) {
+      headers['Authorization'] = authToken.authorizationHeader;
+    }
+    
+    print('Registering FCM token with auth: ${authToken != null}');
+    
+    // Chỉ gửi FCM token trong body
+    final body = jsonEncode({
+      'token': token,
+    });
+    
+    final response = await http.post(uri,
+        headers: headers,
+        body: body);
+
+    print('FCM Registration Response: ${response.statusCode} - ${response.body}');
+    
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      print('FCM Token registered successfully after login');
+    } else {
+      print('Register FCM token failed: ${response.statusCode} ${response.body}');
+    }
+  }
+
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -42,6 +93,9 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
       print('Login successful');
+      
+      // Đăng ký FCM token sau khi đăng nhập thành công
+      await _registerFCMToken();
       
       // Đăng nhập thành công, chuyển đến dashboard
       print('Navigating to dashboard...');

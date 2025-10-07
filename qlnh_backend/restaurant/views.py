@@ -10,12 +10,14 @@ from oauth2_provider.models import AccessToken
 from django.http import JsonResponse
 from django.utils import timezone
 from rest_framework import status
+from rest_framework.decorators import api_view
 import json
+from .utils import send_to_user  # import hàm gửi notification
 
 from restaurant.serializer import (UserSerializer, BanAnSerializer, DonHangSerializer, 
                                   OrderSerializer, TakeawayOrderCreateSerializer, 
-                                  OrderStatusUpdateSerializer, MonAnSerializer, DanhMucSerializer)
-from .models import DonHang, NguoiDung, BanAn, Order, MonAn, DanhMuc
+                                  OrderStatusUpdateSerializer, MonAnSerializer, DanhMucSerializer,)
+from .models import DonHang, NguoiDung, BanAn, Order, MonAn, DanhMuc, FCMDevice
 
 
 
@@ -66,6 +68,22 @@ class UserView(viewsets.ViewSet, generics.CreateAPIView):
         
         return Response({'message': 'Check-out thành công', 'status': 'off_duty'})
 
+
+@api_view(['POST'])
+def register_fcm_token(request):
+    token = request.data.get('token')
+    print('Registering FCM token:', token)
+    print('User authenticated:', request.user.is_authenticated)
+    if request.user.is_authenticated:
+        print('User:', request.user, 'ID:', request.user.id)
+    if not token:
+        return Response({"error": "Missing token"}, status=400)
+
+    if not request.user.is_authenticated:
+        FCMDevice.objects.update_or_create(user=None, token=token)
+        return Response({"message": "Token registered for anonymous user"})
+    FCMDevice.objects.update_or_create(token=token, defaults={"user": request.user})
+    return Response({"message": "Token registered for authenticated user"})
 
 
 class DonHangView(viewsets.ViewSet, generics.ListCreateAPIView):
@@ -163,6 +181,18 @@ class TakeawayOrderView(viewsets.ModelViewSet):
             return OrderStatusUpdateSerializer
         return OrderSerializer
     
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        order = serializer.save()
+        
+        # Push notification to all employees
+        employees = NguoiDung.objects.filter(loai_nguoi_dung='nhan_vien')
+        for emp in employees:
+            send_to_user(emp, "Đơn hàng mới", f"Đơn hàng Mang về #{order.id} vừa được tạo.")
+        
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
     def get_queryset(self):
         user = self.request.user
         if user.loai_nguoi_dung == 'khach_hang':
@@ -193,6 +223,10 @@ class TakeawayOrderView(viewsets.ModelViewSet):
         order.nhan_vien = request.user
         order.trang_thai = 'confirmed'
         order.save()
+
+        # push notification đến khách hàng
+        print(f"Sending order confirmation notification to user {order.khach_hang.id}")
+        send_to_user(order.khach_hang, "Đơn hàng đã được xác nhận", f"Đơn hàng #{order.id} của bạn đã được nhân viên {request.user.ho_ten} xác nhận.")
         
         serializer = self.get_serializer(order)
         return Response(serializer.data)

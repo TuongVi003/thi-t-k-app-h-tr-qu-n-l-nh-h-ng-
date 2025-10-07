@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "882901410425",
+    "project_id": "moon-acce5",
+    "storage_bucket": "moon-acce5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:882901410425:android:195b540539063acf08aaa8",
+        "android_client_info": {
+          "package_name": "com.example.qlnh_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBWPMVGV21p3-jYrfMgyzY1iYFoRZwUzzQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
