@@ -253,6 +253,8 @@ class TakeawayOrderView(viewsets.ModelViewSet):
         order.thoi_gian_lay = thoi_gian_lay
         order.trang_thai = 'cooking'
         order.save()
+
+        send_to_user(order.khach_hang, "Thời gian lấy món đã được xác nhận", f"Đơn hàng #{order.id} sẽ sẵn sàng sau {thoi_gian_lay} phút.")
         
         serializer = self.get_serializer(order)
         return Response(serializer.data)
@@ -286,7 +288,12 @@ class TakeawayOrderView(viewsets.ModelViewSet):
         if new_status == 'ready':
             order.thoi_gian_san_sang = timezone.now()
         order.save()
-        
+
+        if new_status == 'ready':
+            send_to_user(order.khach_hang, "Món đã sẵn sàng", f"Đơn hàng #{order.id} của bạn đã sẵn sàng để lấy.")
+        if new_status == 'completed':
+            send_to_user(order.khach_hang, "Đơn hàng hoàn thành", f"Đơn hàng #{order.id} của bạn đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ!")
+
         serializer = self.get_serializer(order)
         return Response(serializer.data)
     
