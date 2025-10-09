@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:qlnh_nhan_vien/screens/table_management_screen.dart';
 import 'package:qlnh_nhan_vien/screens/booking_management_screen.dart';
-import 'package:qlnh_nhan_vien/screens/order_screen.dart';
 import 'package:qlnh_nhan_vien/screens/login_screen.dart';
 import 'package:qlnh_nhan_vien/screens/takeaway_management_screen.dart';
 import 'package:qlnh_nhan_vien/services/auth_service.dart';
 import 'package:qlnh_nhan_vien/services/takeaway_service.dart';
 import 'package:qlnh_nhan_vien/models/user.dart';
 import 'package:qlnh_nhan_vien/models/takeaway_order.dart';
+import 'package:qlnh_nhan_vien/features/directly_order/directly_order.dart';
 
 
 class DashboardScreen extends StatefulWidget {
@@ -27,7 +27,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final List<Widget> _screens = [
     const TableManagementScreen(),
     const BookingManagementScreen(),
-    const OrderScreen(),
+    const DineInOrderListPage(),
     const TakeawayManagementScreen(),
     const Center(child: Text('Thống kê', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
   ];
@@ -230,16 +230,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   String _getChucVuDisplay(String chucVu) {
     switch (chucVu) {
-      case 'customer':
+      case 'khach_hang':
         return 'Khách hàng';
-      case 'waiter':
-        return 'Phục vụ';
-      case 'manager':
-        return 'Quản lý';
-      case 'chef':
-        return 'Đầu bếp';
-      case 'cashier':
-        return 'Thu ngân';
+      case 'nhan_vien':
+        return 'Nhân Viên';
       default:
         return chucVu;
     }
@@ -413,7 +407,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.restaurant_menu),
-            label: 'Order',
+            label: 'Đặt món',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.takeout_dining),

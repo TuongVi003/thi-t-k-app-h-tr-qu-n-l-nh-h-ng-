@@ -71,13 +71,17 @@ class MonAnAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
+class DonHangAdmin(admin.ModelAdmin):
+    list_display = ('id', 'khach_hang', 'trang_thai', 'ngay_dat')
 
+
+class OrderAdmin(admin.ModelAdmin):
+    list_display = ('khach_hang', 'khach_vang_lai', 'nhan_vien', 'order_time', 'trang_thai', 'thoi_gian_lay', 'thoi_gian_san_sang')
 
 
 admin.site.register(NguoiDung, NguoiDungAdmin)
 admin.site.register(MonAn, MonAnAdmin)
 admin.site.register(DanhMuc)
 admin.site.register(BanAn)
-admin.site.register(DonHang)
-admin.site.register(Order)
-admin.site.register(ChiTietOrder)
+admin.site.register(DonHang, DonHangAdmin)
+admin.site.register(Order, OrderAdmin)

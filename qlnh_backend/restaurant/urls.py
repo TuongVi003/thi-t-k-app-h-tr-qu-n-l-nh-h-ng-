@@ -10,6 +10,7 @@ router.register('users', views.UserView, basename='user')
 router.register('donhang', views.DonHangView, basename='donhang')
 router.register('tables', views.TableView, basename='table')
 router.register('takeaway', views.TakeawayOrderView, basename='takeaway')
+router.register('dine-in', views.DineInOrderView, basename='dine-in')
 router.register('menu', views.MenuView, basename='menu')
 router.register('categories', views.DanhMucView, basename='category')
 

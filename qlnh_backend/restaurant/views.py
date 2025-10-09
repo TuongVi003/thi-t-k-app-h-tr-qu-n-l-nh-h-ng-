@@ -17,7 +17,7 @@ from .utils import send_to_user  # import hàm gửi notification
 from restaurant.serializer import (UserSerializer, BanAnSerializer, DonHangSerializer, 
                                   OrderSerializer, TakeawayOrderCreateSerializer, 
                                   OrderStatusUpdateSerializer, MonAnSerializer, DanhMucSerializer,)
-from .models import DonHang, NguoiDung, BanAn, Order, MonAn, DanhMuc, FCMDevice
+from .models import DonHang, NguoiDung, BanAn, Order, MonAn, DanhMuc, FCMDevice, ChiTietOrder
 
 
 
@@ -318,6 +318,195 @@ class TakeawayOrderView(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+class DineInOrderView(viewsets.ModelViewSet):
+    queryset = Order.objects.filter(loai_order='dine_in')
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return TakeawayOrderCreateSerializer
+        return OrderSerializer
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.loai_nguoi_dung == 'nhan_vien':
+            # Nhân viên xem tất cả đơn dine-in
+            return Order.objects.select_related('khach_hang', 'nhan_vien', 'ban_an').prefetch_related('chitietorder_set__mon_an').filter(loai_order='dine_in').exclude(trang_thai__in=['canceled', 'completed']).order_by('-id')
+        return Order.objects.none()
+    
+    def create(self, request, *args, **kwargs):
+        """Nhân viên tạo đơn cho khách hàng tại bàn"""
+        if request.user.loai_nguoi_dung != 'nhan_vien':
+            return Response({'error': 'Chỉ nhân viên mới được tạo đơn'}, status=status.HTTP_403_FORBIDDEN)
+        
+        if not request.user.dang_lam_viec:
+            return Response({'error': 'Bạn chưa vào ca làm việc'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        ban_an_id = request.data.get('ban_an_id')
+        if not ban_an_id:
+            return Response({'error': 'Vui lòng chọn bàn ăn'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            ban_an = BanAn.objects.get(id=ban_an_id)
+        except BanAn.DoesNotExist:
+            return Response({'error': 'Bàn ăn không tồn tại'}, status=status.HTTP_404_NOT_FOUND)
+        
+        mon_an_list = request.data.get('mon_an_list', [])
+        if not mon_an_list:
+            return Response({'error': 'Vui lòng chọn món ăn'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Tạo order dine-in
+        order = Order.objects.create(
+            ban_an=ban_an,
+            nhan_vien=request.user,
+            loai_order='dine_in',
+            trang_thai='pending',
+            ghi_chu=request.data.get('ghi_chu', '')
+        )
+        
+        # Tạo chi tiết order
+        for item in mon_an_list:
+            mon_an = MonAn.objects.get(id=item['mon_an_id'])
+            ChiTietOrder.objects.create(
+                order=order,
+                mon_an=mon_an,
+                so_luong=item['so_luong'],
+                gia=mon_an.gia
+            )
+        
+        serializer = self.get_serializer(order)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['patch'], url_path='confirm-time')
+    def confirm_time(self, request, pk=None):
+        """Nhân viên xác nhận thời gian chế biến món"""
+        try:
+            order = self.get_object()
+        except Order.DoesNotExist:
+            return Response({'error': 'Đơn hàng không tồn tại'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if request.user.loai_nguoi_dung != 'nhan_vien':
+            return Response({'error': 'Chỉ nhân viên mới được xác nhận'}, status=status.HTTP_403_FORBIDDEN)
+        
+        if not request.user.dang_lam_viec:
+            return Response({'error': 'Bạn chưa vào ca làm việc'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if order.trang_thai != 'pending':
+            return Response({'error': 'Đơn hàng đã được xử lý'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        thoi_gian_lay = request.data.get('thoi_gian_lay')
+        if not thoi_gian_lay:
+            return Response({'error': 'Vui lòng nhập thời gian chế biến'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        order.thoi_gian_lay = thoi_gian_lay
+        order.trang_thai = 'confirmed'
+        order.save()
+        
+        serializer = self.get_serializer(order)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['patch'], url_path='start-cooking')
+    def start_cooking(self, request, pk=None):
+        """Bếp bắt đầu chế biến món"""
+        try:
+            order = self.get_object()
+        except Order.DoesNotExist:
+            return Response({'error': 'Đơn hàng không tồn tại'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if request.user.loai_nguoi_dung != 'nhan_vien':
+            return Response({'error': 'Chỉ nhân viên mới được cập nhật'}, status=status.HTTP_403_FORBIDDEN)
+        
+        if not request.user.dang_lam_viec:
+            return Response({'error': 'Bạn chưa vào ca làm việc'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if order.trang_thai != 'confirmed':
+            return Response({'error': 'Đơn hàng chưa được xác nhận'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        order.trang_thai = 'cooking'
+        order.save()
+        
+        serializer = self.get_serializer(order)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['patch'], url_path='mark-ready')
+    def mark_ready(self, request, pk=None):
+        """Bếp đánh dấu món sẵn sàng"""
+        try:
+            order = self.get_object()
+        except Order.DoesNotExist:
+            return Response({'error': 'Đơn hàng không tồn tại'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if request.user.loai_nguoi_dung != 'nhan_vien':
+            return Response({'error': 'Chỉ nhân viên mới được cập nhật'}, status=status.HTTP_403_FORBIDDEN)
+        
+        if request.user.chuc_vu != 'chef':
+            return Response({'error': 'Chỉ bếp trưởng mới được đánh dấu món sẵn sàng'}, status=status.HTTP_403_FORBIDDEN)
+        
+        if not request.user.dang_lam_viec:
+            return Response({'error': 'Bạn chưa vào ca làm việc'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if order.trang_thai != 'cooking':
+            return Response({'error': 'Đơn hàng chưa được bắt đầu chế biến'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        order.trang_thai = 'ready'
+        order.thoi_gian_san_sang = timezone.now()
+        order.save()
+        
+        # Thông báo cho nhân viên phụ trách
+        if order.nhan_vien:
+            send_to_user(order.nhan_vien, "Món đã sẵn sàng", f"Đơn hàng bàn {order.ban_an.so_ban} (#{order.id}) đã sẵn sàng để phục vụ.")
+        
+        serializer = self.get_serializer(order)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['patch'], url_path='deliver-to-table')
+    def deliver_to_table(self, request, pk=None):
+        """Nhân viên đem món tới bàn"""
+        try:
+            order = self.get_object()
+        except Order.DoesNotExist:
+            return Response({'error': 'Đơn hàng không tồn tại'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if request.user.loai_nguoi_dung != 'nhan_vien':
+            return Response({'error': 'Chỉ nhân viên mới được cập nhật'}, status=status.HTTP_403_FORBIDDEN)
+        
+        if not request.user.dang_lam_viec:
+            return Response({'error': 'Bạn chưa vào ca làm việc'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if order.trang_thai != 'ready':
+            return Response({'error': 'Món chưa sẵn sàng'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        order.trang_thai = 'completed'
+        order.save()
+        
+        serializer = self.get_serializer(order)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['patch'], url_path='cancel-order')
+    def cancel_order(self, request, pk=None):
+        """Nhân viên hủy đơn"""
+        try:
+            order = self.get_object()
+        except Order.DoesNotExist:
+            return Response({'error': 'Đơn hàng không tồn tại'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if request.user.loai_nguoi_dung != 'nhan_vien':
+            return Response({'error': 'Chỉ nhân viên mới được hủy đơn'}, status=status.HTTP_403_FORBIDDEN)
+        
+        if not request.user.dang_lam_viec:
+            return Response({'error': 'Bạn chưa vào ca làm việc'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if order.trang_thai in ['ready', 'completed']:
+            return Response({'error': 'Không thể hủy đơn hàng đã sẵn sàng hoặc hoàn thành'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        order.trang_thai = 'canceled'
+        order.save()
+        
+        serializer = self.get_serializer(order)
+        return Response(serializer.data)
+
+
 class MenuView(viewsets.ReadOnlyModelViewSet):
     queryset = MonAn.objects.filter(available=True)
     serializer_class = MonAnSerializer
@@ -336,6 +525,12 @@ class DanhMucView(viewsets.ViewSet, generics.ListAPIView):
     queryset = DanhMuc.objects.all()
     serializer_class = DanhMucSerializer
     permission_classes = [AllowAny]
+
+
+class NhanVienView(viewsets.ViewSet, generics.ListAPIView):
+    queryset = NguoiDung.objects.filter(loai_nguoi_dung='nhan_vien')
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
 
 
 def landing_page(request):
