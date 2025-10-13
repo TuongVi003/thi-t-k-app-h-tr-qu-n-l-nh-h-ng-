@@ -27,6 +27,7 @@ class _HomeTabState extends State<HomeTab> {
   Future<void> _loadAboutUsData() async {
     try {
       final data = await AboutService.getAboutUs();
+      if(!mounted) return;
       setState(() {
         _aboutUsMap = {
           for (var item in data.where((item) => item.public)) item.key: item

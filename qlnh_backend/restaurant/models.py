@@ -119,6 +119,7 @@ class Order(models.Model):
         ('canceled', 'Đã hủy'),
     )
     trang_thai = models.CharField(max_length=20, choices=ORDER_STATUS, default='pending')
+    thoi_gian_khach_lay =models.DateTimeField(null=True)
     thoi_gian_lay = models.IntegerField(null=True, blank=True, help_text="Thời gian ước tính lấy món (phút)")
     thoi_gian_san_sang = models.DateTimeField(null=True, blank=True, help_text="Thời gian món sẵn sàng")
     ghi_chu = models.TextField(blank=True, null=True)

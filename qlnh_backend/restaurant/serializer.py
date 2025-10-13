@@ -201,13 +201,14 @@ class TakeawayOrderCreateSerializer(ModelSerializer):
         from django.utils import timezone
         
         mon_an_list = validated_data.pop('mon_an_list')
-        
+        print(validated_data.get('thoi_gian_lay_mon'))
         # Tạo order takeaway
         order = Order.objects.create(
             khach_hang=self.context['request'].user,
             loai_order='takeaway',
             trang_thai='pending',
             order_time=timezone.now(),
+
             **validated_data
         )
         

@@ -8,7 +8,6 @@ import 'package:qlnh_app/services/auth_service.dart';
 import '../takeaway/pages/takeaway_success_screen.dart';
 import 'package:qlnh_app/constants/utils.dart';
 
-
 class CartTab extends StatefulWidget {
   final List<CartItem> cartItems;
   final Function(String) onRemoveFromCart;
@@ -65,6 +64,22 @@ class _CartTabState extends State<CartTab> {
         ),
       );
     }
+    final thoiGianLayMon = await showDatePicker(
+      context: context,
+      firstDate: DateTime(2025),
+      lastDate: DateTime(2040),
+      initialDate: DateTime.now(),
+    );
+    print('Ngay ${thoiGianLayMon}');
+    if (thoiGianLayMon == null) return;
+    final gioLayMon = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    print('Gio ${gioLayMon}');
+    if (gioLayMon == null) return;
+    final ngayLayMon = DateTime(thoiGianLayMon.year, thoiGianLayMon.month,
+        thoiGianLayMon.day, gioLayMon.hour, gioLayMon.minute);
 
     try {
       // Convert CartItem to TakeawayCartItem
@@ -82,16 +97,19 @@ class _CartTabState extends State<CartTab> {
       // Create takeaway order
       final order = await TakeawayService.createTakeawayOrder(
         cartItems: takeawayItems,
-        ghiChu: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+        ngay: ngayLayMon,
+        ghiChu: _noteController.text.trim().isEmpty
+            ? null
+            : _noteController.text.trim(),
       );
 
       // Close loading
       if (context.mounted) {
         Navigator.pop(context);
-        
+
         // Clear cart
         widget.onClearCart?.call();
-        
+
         // Navigate to success screen
         Navigator.push(
           context,
@@ -102,9 +120,10 @@ class _CartTabState extends State<CartTab> {
       }
     } catch (e) {
       // Close loading
+      print('Lỗi khi đặt hàng mang về: ${e}');
       if (context.mounted) {
         Navigator.pop(context);
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Lỗi đặt hàng: ${e.toString()}'),
@@ -148,11 +167,13 @@ class _CartTabState extends State<CartTab> {
                       onPressed: () async {
                         final result = await Navigator.push<bool?>(
                           context,
-                          MaterialPageRoute(builder: (c) => const LoginScreen()),
+                          MaterialPageRoute(
+                              builder: (c) => const LoginScreen()),
                         );
                         if (result == true || AuthService.instance.isLoggedIn) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Đăng nhập thành công')),
+                            const SnackBar(
+                                content: Text('Đăng nhập thành công')),
                           );
                         }
                       },
@@ -162,7 +183,6 @@ class _CartTabState extends State<CartTab> {
                 ),
               ),
             ),
-          
           if (widget.cartItems.isEmpty)
             Expanded(
               child: Center(
@@ -233,7 +253,8 @@ class _CartTabState extends State<CartTab> {
                                 child: Image.network(
                                   Utils.imageUrl(cartItem.menuItem.imageUrl),
                                   fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => Container(
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      Container(
                                     color: AppColors.primaryVeryLight,
                                     child: const Icon(
                                       Icons.restaurant,
@@ -271,7 +292,8 @@ class _CartTabState extends State<CartTab> {
                           Row(
                             children: [
                               IconButton(
-                                onPressed: () => widget.onUpdateQuantity(item.id, cartItem.quantity - 1),
+                                onPressed: () => widget.onUpdateQuantity(
+                                    item.id, cartItem.quantity - 1),
                                 icon: const Icon(Icons.remove_circle_outline),
                                 color: AppColors.textSecondary,
                               ),
@@ -283,7 +305,8 @@ class _CartTabState extends State<CartTab> {
                                 ),
                               ),
                               IconButton(
-                                onPressed: () => widget.onUpdateQuantity(item.id, cartItem.quantity + 1),
+                                onPressed: () => widget.onUpdateQuantity(
+                                    item.id, cartItem.quantity + 1),
                                 icon: const Icon(Icons.add_circle_outline),
                                 color: AppColors.primary,
                               ),
@@ -301,7 +324,7 @@ class _CartTabState extends State<CartTab> {
                 },
               ),
             ),
-            
+
             // Note input
             Card(
               margin: const EdgeInsets.only(bottom: 16),
@@ -334,7 +357,7 @@ class _CartTabState extends State<CartTab> {
                 ),
               ),
             ),
-            
+
             // Total and checkout section
             Container(
               padding: const EdgeInsets.all(16),

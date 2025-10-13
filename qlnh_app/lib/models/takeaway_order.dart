@@ -1,5 +1,6 @@
 class TakeawayOrder {
   final int? id;
+  final DateTime? thoiGianKhachLay;
   final String? ghiChu;
   final DateTime? orderTime;
   final String trangThai;
@@ -11,6 +12,7 @@ class TakeawayOrder {
 
   TakeawayOrder({
     this.id,
+    this.thoiGianKhachLay,
     this.ghiChu,
     this.orderTime,
     required this.trangThai,
@@ -34,6 +36,7 @@ class TakeawayOrder {
 
     return TakeawayOrder(
       id: json['id'],
+      thoiGianKhachLay: parseDateTime(json['thoi_gian_khach_lay']) ,
       ghiChu: json['ghi_chu'],
       orderTime: parseDateTime(json['order_time']) ?? DateTime.now(),
       trangThai: json['trang_thai'] ?? 'pending',

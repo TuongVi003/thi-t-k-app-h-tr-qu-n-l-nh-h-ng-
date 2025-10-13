@@ -274,6 +274,8 @@ class TakeawayOrderView(viewsets.ModelViewSet):
         serializer = self.get_serializer(order)
         return Response(serializer.data)
     
+    
+    
     @action(detail=True, methods=['patch'], url_path='update-status')
     def update_status(self, request, pk=None):
         """Cập nhật trạng thái đơn hàng (dành cho bếp và nhân viên)"""
