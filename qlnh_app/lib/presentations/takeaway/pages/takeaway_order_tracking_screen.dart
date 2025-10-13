@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../models/takeaway_order.dart';
-import '../../services/takeaway_service.dart';
+import '../../../models/takeaway_order.dart';
+import '../../../constants/app_colors.dart';
+import '../service/takeaway_service.dart';
 
 class TakeawayOrderTrackingScreen extends StatefulWidget {
   final int orderId;
@@ -62,19 +63,19 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
   Color _getStatusColor(String status) {
     switch (status) {
       case 'pending':
-        return Colors.orange;
+        return AppColors.orderPending;
       case 'confirmed':
-        return Colors.blue;
+        return AppColors.orderProcessing;
       case 'cooking':
-        return Colors.purple;
+        return AppColors.orderReady;
       case 'ready':
-        return Colors.green;
+        return AppColors.orderCompleted;
       case 'completed':
-        return Colors.teal;
+        return AppColors.success;
       case 'canceled':
-        return Colors.red;
+        return AppColors.orderCancelled;
       default:
-        return Colors.grey;
+        return AppColors.textLight;
     }
   }
 
@@ -125,8 +126,8 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
     return Scaffold(
       appBar: AppBar(
         title: Text(_order?.id != null ? 'Đơn hàng #${_order!.id}' : 'Theo dõi đơn hàng'),
-        backgroundColor: Colors.orange.shade700,
-        foregroundColor: Colors.white,
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.textWhite,
       ),
       body: _buildBody(),
     );
@@ -142,14 +143,14 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 60, color: Colors.red.shade300),
+            Icon(Icons.error_outline, size: 60, color: AppColors.errorLight),
             const SizedBox(height: 16),
             Text(
               'Không thể tải đơn hàng',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey.shade700,
+                color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -158,7 +159,7 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
               child: Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               ),
             ),
             const SizedBox(height: 16),
@@ -207,12 +208,19 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
 
     return Card(
       elevation: 4,
-      color: statusColor.withOpacity(0.1),
+      color: AppColors.surface,
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            Icon(statusIcon, size: 64, color: statusColor),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(statusIcon, size: 48, color: statusColor),
+            ),
             const SizedBox(height: 12),
             Text(
               _order!.trangThaiDisplay,
@@ -227,45 +235,46 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
               Text(
                 'Đơn hàng đang chờ nhà hàng xác nhận',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               )
             else if (_order!.trangThai == 'confirmed')
               Text(
                 'Đơn hàng đã được xác nhận và đang chuẩn bị',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               )
             else if (_order!.trangThai == 'cooking')
               Text(
                 'Món ăn đang được chế biến',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               )
             else if (_order!.trangThai == 'ready')
               Text(
                 'Món ăn đã sẵn sàng! Vui lòng đến lấy',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               )
             else if (_order!.trangThai == 'completed')
               Text(
                 'Đơn hàng đã hoàn thành',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               )
             else if (_order!.trangThai == 'canceled')
               Text(
                 'Đơn hàng đã bị hủy',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               ),
             if (_order!.thoiGianLay != null) ...[
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.surface,
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: statusColor.withOpacity(0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -331,12 +340,12 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
                           shape: BoxShape.circle,
                           color: isActive
                               ? _getStatusColor(step['status'] as String)
-                              : Colors.grey.shade300,
+                              : AppColors.borderLight,
                         ),
                         child: Icon(
                           isActive ? Icons.check : Icons.circle,
                           size: isCurrent ? 20 : 16,
-                          color: Colors.white,
+                          color: AppColors.textWhite,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -346,7 +355,7 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                            color: isActive ? Colors.black87 : Colors.grey.shade500,
+                            color: isActive ? AppColors.textPrimary : AppColors.textLight,
                           ),
                         ),
                       ),
@@ -357,7 +366,7 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
                       margin: const EdgeInsets.only(left: 15, top: 4, bottom: 4),
                       width: 2,
                       height: 24,
-                      color: isActive ? Colors.grey.shade400 : Colors.grey.shade300,
+                      color: isActive ? AppColors.divider : AppColors.borderLight,
                     ),
                 ],
               );
@@ -416,7 +425,7 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: Colors.grey.shade600),
+        Icon(icon, size: 20, color: AppColors.textSecondary),
         const SizedBox(width: 8),
         Expanded(
           child: Column(
@@ -426,7 +435,7 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey.shade600,
+                  color: AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 2),
@@ -465,7 +474,7 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
+                      color: AppColors.borderLight,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: item.hinhAnh != null
@@ -476,11 +485,11 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => Icon(
                                 Icons.restaurant,
-                                color: Colors.grey.shade400,
+                                color: AppColors.textLight,
                               ),
                             ),
                           )
-                        : Icon(Icons.restaurant, color: Colors.grey.shade400),
+                        : Icon(Icons.restaurant, color: AppColors.textLight),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -499,7 +508,7 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
                           '${item.gia.toStringAsFixed(0)}đ x ${item.soLuong}',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey.shade600,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
@@ -528,7 +537,7 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.orange.shade700,
+                    color: AppColors.primary,
                   ),
                 ),
               ],
@@ -543,14 +552,14 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
     // This section could display customer info if needed
     // For now, we'll show a helpful info card
     return Card(
-      color: Colors.blue.shade50,
+      color: AppColors.infoBackground,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             Row(
               children: [
-                Icon(Icons.info_outline, color: Colors.blue.shade700),
+                Icon(Icons.info_outline, color: AppColors.info),
                 const SizedBox(width: 8),
                 const Text(
                   'Lưu ý',
@@ -587,8 +596,8 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
               icon: const Icon(Icons.cancel),
               label: const Text('Hủy đơn hàng'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
+                backgroundColor: AppColors.orderCancelled,
+                foregroundColor: AppColors.textWhite,
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
             ),
@@ -626,12 +635,12 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange.shade50,
+                color: AppColors.warningBackground,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, size: 20, color: Colors.orange.shade700),
+                  Icon(Icons.info_outline, size: 20, color: AppColors.warning),
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
@@ -655,8 +664,8 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
               await _cancelOrder();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+              backgroundColor: AppColors.orderCancelled,
+              foregroundColor: AppColors.textWhite,
             ),
             child: const Text('Xác nhận hủy'),
           ),
@@ -681,7 +690,7 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Đã hủy đơn hàng thành công'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
           ),
         );
       }
@@ -702,7 +711,7 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error,
             duration: const Duration(seconds: 3),
           ),
         );

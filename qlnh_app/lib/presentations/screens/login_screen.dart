@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
 import '../../services/auth_service.dart';
+import '../../constants/app_colors.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -102,17 +103,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Logo/Title section
                 Column(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.restaurant,
                       size: 80,
-                      color: Colors.orange.shade700,
+                      color: AppColors.primary,
                     ),
                     const SizedBox(height: 16),
                     Text(
                       'Nhà Hàng Tường Vi',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade800,
+                            color: AppColors.textPrimary,
                           ),
                       textAlign: TextAlign.center,
                     ),
@@ -188,8 +189,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 ElevatedButton(
                   onPressed: _isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange.shade700,
-                    foregroundColor: Colors.white,
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.textWhite,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -234,10 +235,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     );
                   },
-                  child: Text(
+                  child: const Text(
                     'Quên mật khẩu?',
                     style: TextStyle(
-                      color: Colors.orange.shade700,
+                      color: AppColors.primary,
                     ),
                   ),
                 ),
@@ -254,10 +255,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       );
                     }
                   },
-                  child: Text(
+                  child: const Text(
                     'Đăng ký',
                     style: TextStyle(
-                      color: Colors.orange.shade700,
+                      color: AppColors.primary,
                     ),
                   ),
                 ),

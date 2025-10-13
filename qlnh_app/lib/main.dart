@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'presentations/screens/login_screen.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
+import 'constants/app_colors.dart';
 
 // Background message handler
 @pragma('vm:entry-point')
@@ -79,7 +80,7 @@ class _MyAppState extends State<MyApp> {
               ],
             ),
             duration: const Duration(seconds: 5),
-            backgroundColor: Colors.orange.shade700,
+            backgroundColor: AppColors.primary,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -100,14 +101,55 @@ class _MyAppState extends State<MyApp> {
       title: 'Quản Lý Nhà Hàng',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.orange,
+          seedColor: AppColors.primary,
+          primary: AppColors.primary,
+          secondary: AppColors.accent,
           brightness: Brightness.light,
         ),
+        scaffoldBackgroundColor: AppColors.background,
         useMaterial3: true,
-        appBarTheme: AppBarTheme(
-          backgroundColor: Colors.orange.shade700,
-          foregroundColor: Colors.white,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.textWhite,
           elevation: 0,
+        ),
+        floatingActionButtonTheme: const FloatingActionButtonThemeData(
+          backgroundColor: AppColors.accent,
+          foregroundColor: AppColors.textWhite,
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: AppColors.textWhite,
+            elevation: 2,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+        cardTheme: CardThemeData(
+          color: AppColors.cardBackground,
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: AppColors.surface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: AppColors.primary, width: 2),
+          ),
         ),
       ),
       home: const LoginScreen(),

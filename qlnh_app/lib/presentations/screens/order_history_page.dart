@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import '../../services/auth_service.dart';
 import '../../models/takeaway_order.dart';
-import '../../services/takeaway_service.dart';
-import '../takeaway/takeaway_order_tracking_screen.dart';
+import '../takeaway/service/takeaway_service.dart';
+import '../takeaway/pages/takeaway_order_tracking_screen.dart';
 
 class OrderHistoryTab extends StatefulWidget {
   const OrderHistoryTab({super.key});

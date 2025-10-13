@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import 'reservation_screen.dart';
-import '../../models/model.dart';
-import '../takeaway/menu_tab_widget.dart';
-import 'cart_page.dart';
+import '../../constants/app_colors.dart';
+import 'home_tab.dart';
 import 'order_history_page.dart';
 import 'profile_page.dart';
 
@@ -20,7 +19,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late int _selectedIndex;
-  List<CartItem> _cartItems = [];
   bool _showReservationTooltip = true;
   
     @override
@@ -29,67 +27,9 @@ class _HomeScreenState extends State<HomeScreen> {
       _selectedIndex = widget.initialIndex;
     }
 
-  void _addToCart(MenuItem item) {
-    setState(() {
-      final existingItemIndex = _cartItems.indexWhere((cartItem) => cartItem.menuItem.id == item.id);
-      if (existingItemIndex >= 0) {
-        _cartItems[existingItemIndex].quantity++;
-      } else {
-        _cartItems.add(CartItem(menuItem: item));
-      }
-    });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${item.name} đã được thêm vào giỏ hàng'),
-        duration: const Duration(seconds: 1),
-      ),
-    );
-  }
-
-  void _removeFromCart(String itemId) {
-    setState(() {
-      _cartItems.removeWhere((cartItem) => cartItem.menuItem.id == itemId);
-    });
-  }
-
-  void _updateCartQuantity(String itemId, int newQuantity) {
-    setState(() {
-      if (newQuantity <= 0) {
-        _removeFromCart(itemId);
-      } else {
-        final itemIndex = _cartItems.indexWhere((cartItem) => cartItem.menuItem.id == itemId);
-        if (itemIndex >= 0) {
-          _cartItems[itemIndex].quantity = newQuantity;
-        }
-      }
-    });
-  }
-
-  void _clearCart() {
-    setState(() {
-      _cartItems.clear();
-    });
-  }
-
-  double get _totalPrice {
-    return _cartItems.fold(0.0, (total, cartItem) => total + (cartItem.menuItem.price * cartItem.quantity));
-  }
-
-  int get _cartItemCount {
-    return _cartItems.fold(0, (total, cartItem) => total + cartItem.quantity);
-  }
-
   List<Widget> get _widgetOptions {
     return [
-      MenuTab(onAddToCart: _addToCart),
-      CartTab(
-        cartItems: _cartItems,
-        onRemoveFromCart: _removeFromCart,
-        onUpdateQuantity: _updateCartQuantity,
-        totalPrice: _totalPrice,
-        onClearCart: _clearCart,
-      ),
+      const HomeTab(),
       OrderHistoryTab(),
       ProfileTab(),
     ];
@@ -151,50 +91,12 @@ class _HomeScreenState extends State<HomeScreen> {
               'Nhà Hàng Tường Vi',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: AppColors.textWhite,
               ),
             ),
-            backgroundColor: Colors.orange.shade700,
+            backgroundColor: AppColors.primary,
             elevation: 0,
             actions: [
-              Stack(
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      _onItemTapped(1);
-                    },
-                    icon: const Icon(
-                      Icons.shopping_cart,
-                      color: Colors.white,
-                    ),
-                  ),
-                  if (_cartItemCount > 0)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        child: Text(
-                          '$_cartItemCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
               PopupMenuButton<String>(
                 icon: const Icon(
                   Icons.account_circle,
@@ -249,14 +151,10 @@ class _HomeScreenState extends State<HomeScreen> {
           body: _widgetOptions.elementAt(_selectedIndex),
           bottomNavigationBar: BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
-            items: const <BottomNavigationBarItem>[
+            items: const [
               BottomNavigationBarItem(
-                icon: Icon(Icons.restaurant_menu),
-                label: 'Menu',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.shopping_cart),
-                label: 'Giỏ hàng',
+                icon: Icon(Icons.home),
+                label: 'Trang chủ',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.history),
@@ -268,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
             currentIndex: _selectedIndex,
-            selectedItemColor: Colors.orange.shade700,
+            selectedItemColor: AppColors.primary,
             onTap: _onItemTapped,
           ),
         ),
@@ -293,7 +191,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Material(
                   elevation: 8,
                   borderRadius: BorderRadius.circular(12),
-                  color: Colors.orange.shade700,
+                  color: AppColors.accent,
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     constraints: const BoxConstraints(maxWidth: 200),
@@ -355,7 +253,7 @@ class ArrowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.orange.shade700
+      ..color = AppColors.accent
       ..strokeWidth = 4
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -398,7 +296,7 @@ class ArrowPainter extends CustomPainter {
     
     // Draw arrowhead
     final arrowheadPaint = Paint()
-      ..color = Colors.orange.shade700
+      ..color = AppColors.accent
       ..style = PaintingStyle.fill;
     
     final arrowPath = Path();

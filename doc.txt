@@ -1,0 +1,7 @@
+- Bỏ xác nhận thời gian, thời điểm lấy là do khách hàng chỉ định (NV)
+- Đặt bàn thì thêm danh sách bàn cho ngta chọn (KH)
+
+
+- Đặt món ăn trực tiếp thì bấm vô bàn (tại trang chủ) và đặt (NV)
+
+

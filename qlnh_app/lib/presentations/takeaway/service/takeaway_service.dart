@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../constants/api.dart';
-import '../models/takeaway_order.dart';
-import 'auth_service.dart';
+import '../../../constants/api.dart';
+import '../../../models/takeaway_order.dart';
+import '../../../services/auth_service.dart';
 
 class TakeawayService {
   static const int timeout = 10; // seconds

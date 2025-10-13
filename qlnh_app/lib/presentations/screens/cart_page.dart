@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:qlnh_app/models/cart_item.dart';
 import 'package:qlnh_app/models/takeaway_order.dart';
-import 'package:qlnh_app/services/takeaway_service.dart';
+import 'package:qlnh_app/presentations/takeaway/service/takeaway_service.dart';
+import 'package:qlnh_app/constants/app_colors.dart';
 import 'login_screen.dart';
 import 'package:qlnh_app/services/auth_service.dart';
-import '../takeaway/takeaway_success_screen.dart';
+import '../takeaway/pages/takeaway_success_screen.dart';
 import 'package:qlnh_app/constants/utils.dart';
 
 
@@ -131,7 +132,7 @@ class _CartTabState extends State<CartTab> {
           const SizedBox(height: 16),
           if (!loggedIn)
             Card(
-              color: Colors.orange.shade50,
+              color: AppColors.infoBackground,
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: Row(
@@ -140,7 +141,7 @@ class _CartTabState extends State<CartTab> {
                     Expanded(
                       child: Text(
                         'Bạn đang xem dưới tư cách khách. Đăng nhập để lưu giỏ hàng và đặt hàng.',
-                        style: TextStyle(color: Colors.orange.shade800),
+                        style: TextStyle(color: AppColors.info),
                       ),
                     ),
                     TextButton(
@@ -211,13 +212,13 @@ class _CartTabState extends State<CartTab> {
                               width: 60,
                               height: 60,
                               decoration: BoxDecoration(
-                                color: Colors.orange.shade100,
+                                color: AppColors.primaryVeryLight,
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Icon(
+                              child: const Icon(
                                 Icons.restaurant,
                                 size: 30,
-                                color: Colors.orange.shade700,
+                                color: AppColors.primary,
                               ),
                             )
                           else
@@ -233,11 +234,11 @@ class _CartTabState extends State<CartTab> {
                                   Utils.imageUrl(cartItem.menuItem.imageUrl),
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) => Container(
-                                    color: Colors.orange.shade100,
-                                    child: Icon(
+                                    color: AppColors.primaryVeryLight,
+                                    child: const Icon(
                                       Icons.restaurant,
                                       size: 30,
-                                      color: Colors.orange.shade700,
+                                      color: AppColors.primary,
                                     ),
                                   ),
                                 ),
@@ -258,9 +259,9 @@ class _CartTabState extends State<CartTab> {
                                 const SizedBox(height: 4),
                                 Text(
                                   '${item.price.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} ₫',
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 14,
-                                    color: Colors.orange.shade700,
+                                    color: AppColors.accent,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -272,7 +273,7 @@ class _CartTabState extends State<CartTab> {
                               IconButton(
                                 onPressed: () => widget.onUpdateQuantity(item.id, cartItem.quantity - 1),
                                 icon: const Icon(Icons.remove_circle_outline),
-                                color: Colors.grey.shade600,
+                                color: AppColors.textSecondary,
                               ),
                               Text(
                                 cartItem.quantity.toString(),
@@ -284,14 +285,14 @@ class _CartTabState extends State<CartTab> {
                               IconButton(
                                 onPressed: () => widget.onUpdateQuantity(item.id, cartItem.quantity + 1),
                                 icon: const Icon(Icons.add_circle_outline),
-                                color: Colors.orange.shade700,
+                                color: AppColors.primary,
                               ),
                             ],
                           ),
                           IconButton(
                             onPressed: () => widget.onRemoveFromCart(item.id),
                             icon: const Icon(Icons.delete_outline),
-                            color: Colors.red.shade400,
+                            color: AppColors.error,
                           ),
                         ],
                       ),
@@ -355,10 +356,10 @@ class _CartTabState extends State<CartTab> {
                       ),
                       Text(
                         '${widget.totalPrice.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} ₫',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Colors.orange.shade700,
+                          color: AppColors.accent,
                         ),
                       ),
                     ],
@@ -369,8 +370,8 @@ class _CartTabState extends State<CartTab> {
                     child: ElevatedButton(
                       onPressed: () => _handleCheckout(context),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange.shade700,
-                        foregroundColor: Colors.white,
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.textWhite,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),

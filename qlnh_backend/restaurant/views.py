@@ -14,10 +14,10 @@ from rest_framework.decorators import api_view
 import json
 from .utils import send_to_user  # import hàm gửi notification
 
-from restaurant.serializer import (UserSerializer, BanAnSerializer, DonHangSerializer, 
+from restaurant.serializer import (BanAnForReservationSerializer, UserSerializer, BanAnSerializer, DonHangSerializer, 
                                   OrderSerializer, TakeawayOrderCreateSerializer, 
-                                  OrderStatusUpdateSerializer, MonAnSerializer, DanhMucSerializer,)
-from .models import DonHang, NguoiDung, BanAn, Order, MonAn, DanhMuc, FCMDevice, ChiTietOrder
+                                  OrderStatusUpdateSerializer, MonAnSerializer, DanhMucSerializer, AboutUsSerializer)
+from .models import DonHang, NguoiDung, BanAn, Order, MonAn, DanhMuc, FCMDevice, ChiTietOrder, AboutUs
 
 
 
@@ -80,8 +80,12 @@ def register_fcm_token(request):
         return Response({"error": "Missing token"}, status=400)
 
     if not request.user.is_authenticated:
-        FCMDevice.objects.update_or_create(user=None, token=token)
+        # nếu chưa login, tìm thấy token thì xóa user cũ (và gán user=None)
+        # không tìm thấy thì tạo mới với user=None
+        FCMDevice.objects.update_or_create(token=token, defaults={"user": None})
         return Response({"message": "Token registered for anonymous user"})
+    # nếu đã login, tìm thấy token thì cập nhật user
+    # không tìm thấy thì tạo mới với user hiện tại
     FCMDevice.objects.update_or_create(token=token, defaults={"user": request.user})
     return Response({"message": "Token registered for authenticated user"})
 
@@ -126,6 +130,17 @@ class TableView(viewsets.ViewSet, generics.ListCreateAPIView):
     serializer_class = BanAnSerializer
 
     
+
+
+class UserTableView(viewsets.ViewSet, generics.ListAPIView):
+    serializer_class = BanAnForReservationSerializer
+    queryset = BanAn.objects.all()
+
+    def get_queryset(self):
+        khu_vuc = self.request.query_params.get('khu_vuc')
+        if khu_vuc:
+            return self.queryset.filter(khu_vuc=khu_vuc)
+        return self.queryset
 
 
 class CustomTokenView(TokenView):
@@ -531,6 +546,12 @@ class NhanVienView(viewsets.ViewSet, generics.ListAPIView):
     queryset = NguoiDung.objects.filter(loai_nguoi_dung='nhan_vien')
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
+
+
+class AboutUsView(viewsets.ViewSet, generics.ListAPIView):
+    queryset = AboutUs.objects.filter(public=True)
+    serializer_class = AboutUsSerializer
+    permission_classes = [AllowAny]
 
 
 def landing_page(request):

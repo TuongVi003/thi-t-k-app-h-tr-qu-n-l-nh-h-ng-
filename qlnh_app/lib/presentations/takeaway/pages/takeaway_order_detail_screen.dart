@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../models/takeaway_order.dart';
+import '../../../models/takeaway_order.dart';
 
 class TakeawayOrderDetailScreen extends StatelessWidget {
   final TakeawayOrder order;

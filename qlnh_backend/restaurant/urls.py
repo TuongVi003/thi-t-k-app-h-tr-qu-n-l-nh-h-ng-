@@ -13,6 +13,8 @@ router.register('takeaway', views.TakeawayOrderView, basename='takeaway')
 router.register('dine-in', views.DineInOrderView, basename='dine-in')
 router.register('menu', views.MenuView, basename='menu')
 router.register('categories', views.DanhMucView, basename='category')
+router.register('about-us', views.AboutUsView, basename='about-us')
+router.register('tables-for-reservations', views.UserTableView, basename='tfr')
 
 
 urlpatterns = [

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:qlnh_app/constants/app_colors.dart';
 import 'package:qlnh_app/presentations/screens/home_screen.dart';
-import '../../models/takeaway_order.dart';
-import '../../services/takeaway_service.dart';
+import '../../../models/takeaway_order.dart';
+import '../service/takeaway_service.dart';
 
 class TakeawayStatusWidget extends StatefulWidget {
   const TakeawayStatusWidget({super.key});
@@ -45,19 +46,19 @@ class _TakeawayStatusWidgetState extends State<TakeawayStatusWidget> {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'pending':
-        return Colors.orange;
+        return AppColors.orderPending;
       case 'confirmed':
-        return Colors.blue;
+        return AppColors.orderProcessing;
       case 'cooking':
-        return Colors.purple;
+        return AppColors.orderReady;
       case 'ready':
-        return Colors.green;
+        return AppColors.orderCompleted;
       case 'completed':
-        return Colors.teal;
+        return AppColors.accent;
       case 'canceled':
-        return Colors.red;
+        return AppColors.orderCancelled;
       default:
-        return Colors.grey;
+        return AppColors.textLight;
     }
   }
 

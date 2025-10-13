@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../models/takeaway_order.dart';
+import '../../../models/takeaway_order.dart';
+import '../../../constants/app_colors.dart';
 import 'takeaway_order_tracking_screen.dart';
 
 class TakeawaySuccessScreen extends StatelessWidget {
@@ -17,11 +18,11 @@ class TakeawaySuccessScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.green.shade50,
+      backgroundColor: AppColors.successBackground,
       appBar: AppBar(
         title: const Text('Đặt hàng thành công'),
-        backgroundColor: Colors.green.shade700,
-        foregroundColor: Colors.white,
+        backgroundColor: AppColors.success,
+        foregroundColor: AppColors.textWhite,
         automaticallyImplyLeading: false,
       ),
       body: Padding(
@@ -38,14 +39,14 @@ class TakeawaySuccessScreen extends StatelessWidget {
                     Container(
                       width: 100,
                       height: 100,
-                      decoration: BoxDecoration(
-                        color: Colors.green,
+                      decoration: const BoxDecoration(
+                        color: AppColors.success,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
                         Icons.check,
                         size: 60,
-                        color: Colors.white,
+                        color: AppColors.textWhite,
                       ),
                     ),
 
@@ -57,7 +58,7 @@ class TakeawaySuccessScreen extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Colors.green,
+                        color: AppColors.success,
                       ),
                     ),
 
@@ -68,9 +69,9 @@ class TakeawaySuccessScreen extends StatelessWidget {
                           ? 'Đơn hàng #${order.id} của bạn đã được gửi đến nhà hàng'
                           : 'Đơn hàng của bạn đã được gửi đến nhà hàng (mã chưa có)',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 16,
-                        color: Colors.grey.shade700,
+                        color: AppColors.textSecondary,
                       ),
                     ),
 
@@ -96,13 +97,13 @@ class TakeawaySuccessScreen extends StatelessWidget {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: Colors.orange,
+                                    color: AppColors.orderPending,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
                                     order.trangThaiDisplay,
                                     style: const TextStyle(
-                                      color: Colors.white,
+                                      color: AppColors.textWhite,
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -200,7 +201,7 @@ class TakeawaySuccessScreen extends StatelessWidget {
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.green,
+                                    color: AppColors.accent,
                                   ),
                                 ),
                               ],
@@ -213,17 +214,17 @@ class TakeawaySuccessScreen extends StatelessWidget {
                     const SizedBox(height: 24),
 
                     // Information card
-                    Card(
-                      color: Colors.blue.shade50,
+                    const Card(
+                      color: AppColors.infoBackground,
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: EdgeInsets.all(16),
                         child: Column(
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.info, color: Colors.blue.shade700),
-                                const SizedBox(width: 8),
-                                const Text(
+                                Icon(Icons.info, color: AppColors.info),
+                                SizedBox(width: 8),
+                                Text(
                                   'Thông tin quan trọng',
                                   style: TextStyle(
                                     fontSize: 16,
@@ -269,8 +270,8 @@ class TakeawaySuccessScreen extends StatelessWidget {
                           }
                         : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.textWhite,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                     child: const Text(
@@ -291,14 +292,14 @@ class TakeawaySuccessScreen extends StatelessWidget {
                     },
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: const BorderSide(color: Colors.orange),
+                      side: const BorderSide(color: AppColors.accent),
                     ),
                     child: const Text(
                       'Về trang chủ',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.orange,
+                        color: AppColors.accent,
                       ),
                     ),
                   ),

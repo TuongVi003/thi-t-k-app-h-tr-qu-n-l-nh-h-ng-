@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qlnh_app/models/model.dart';
 import 'package:qlnh_app/services/menu_service.dart';
+import 'package:qlnh_app/constants/app_colors.dart';
 import 'takeaway_status_widget.dart';
 
 class MenuTab extends StatefulWidget {
@@ -105,35 +106,35 @@ class _MenuTabState extends State<MenuTab> {
             margin: const EdgeInsets.symmetric(vertical: 16),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.orange.shade50,
+              color: AppColors.infoBackground,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: Colors.orange.shade200,
+                color: AppColors.infoLight,
               ),
             ),
             child: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.takeout_dining,
-                  color: Colors.orange.shade700,
+                  color: AppColors.info,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Đặt món mang về',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: Colors.orange.shade700,
+                          color: AppColors.info,
                         ),
                       ),
                       Text(
                         'Thêm món vào giỏ hàng và thanh toán',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade600,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -168,12 +169,12 @@ class _MenuTabState extends State<MenuTab> {
                                 _fetchMenuItems();
                               }
                             },
-                            backgroundColor: Colors.grey.shade200,
-                            selectedColor: Colors.orange.shade100,
+                            backgroundColor: AppColors.chipBackground,
+                            selectedColor: AppColors.chipSelectedBackground,
                             labelStyle: TextStyle(
                               color: isSelected
-                                  ? Colors.orange.shade700
-                                  : Colors.grey.shade700,
+                                  ? AppColors.chipSelectedText
+                                  : AppColors.chipText,
                               fontWeight: isSelected
                                   ? FontWeight.bold
                                   : FontWeight.normal,
@@ -197,12 +198,12 @@ class _MenuTabState extends State<MenuTab> {
                               _fetchMenuItems(categoryId: category.id);
                             }
                           },
-                          backgroundColor: Colors.grey.shade200,
-                          selectedColor: Colors.orange.shade100,
+                          backgroundColor: AppColors.chipBackground,
+                          selectedColor: AppColors.chipSelectedBackground,
                           labelStyle: TextStyle(
                             color: isSelected
-                                ? Colors.orange.shade700
-                                : Colors.grey.shade700,
+                                ? AppColors.chipSelectedText
+                                : AppColors.chipText,
                             fontWeight: isSelected
                                 ? FontWeight.bold
                                 : FontWeight.normal,
@@ -249,7 +250,7 @@ class _MenuTabState extends State<MenuTab> {
                                   width: 80,
                                   height: 80,
                                   decoration: BoxDecoration(
-                                    color: Colors.orange.shade100,
+                                    color: AppColors.primaryVeryLight,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: ClipRRect(
@@ -265,10 +266,10 @@ class _MenuTabState extends State<MenuTab> {
                                                 fit: BoxFit.cover,
                                                 errorBuilder: (context, error, stackTrace) {
                                                   print('Image load error: $error');
-                                                  return Icon(
+                                                  return const Icon(
                                                     Icons.restaurant,
                                                     size: 40,
-                                                    color: Colors.orange.shade700,
+                                                    color: AppColors.primary,
                                                   );
                                                 },
                                                 loadingBuilder: (context, child, loadingProgress) {
@@ -276,24 +277,21 @@ class _MenuTabState extends State<MenuTab> {
                                                     print('Image loaded successfully: $imageUrl');
                                                     return child;
                                                   }
-                                                  return Center(
+                                                  return const Center(
                                                     child: CircularProgressIndicator(
-                                                      value: loadingProgress.expectedTotalBytes != null
-                                                          ? loadingProgress.cumulativeBytesLoaded /
-                                                              loadingProgress.expectedTotalBytes!
-                                                          : null,
+                                                      value: null,
                                                       strokeWidth: 2,
-                                                      color: Colors.orange.shade700,
+                                                      color: AppColors.primary,
                                                     ),
                                                   );
                                                 },
                                               );
                                             },
                                           )
-                                        : Icon(
+                                        : const Icon(
                                             Icons.restaurant,
                                             size: 40,
-                                            color: Colors.orange.shade700,
+                                            color: AppColors.primary,
                                           ),
                                   ),
                                 ),
@@ -315,9 +313,9 @@ class _MenuTabState extends State<MenuTab> {
                                       const SizedBox(height: 4),
                                       Text(
                                         item.moTa,
-                                        style: TextStyle(
+                                        style: const TextStyle(
                                           fontSize: 14,
-                                          color: Colors.grey.shade600,
+                                          color: AppColors.textSecondary,
                                         ),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
@@ -329,17 +327,17 @@ class _MenuTabState extends State<MenuTab> {
                                         children: [
                                           Text(
                                             '${item.gia.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} ₫',
-                                            style: TextStyle(
+                                            style: const TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
-                                              color: Colors.orange.shade700,
+                                              color: AppColors.accent,
                                             ),
                                           ),
                                           ElevatedButton(
                                             onPressed: () => _addToCart(item),
                                             style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.orange.shade700,
-                                              foregroundColor: Colors.white,
+                                              backgroundColor: AppColors.accent,
+                                              foregroundColor: AppColors.textWhite,
                                               shape: RoundedRectangleBorder(
                                                 borderRadius: BorderRadius.circular(8),
                                               ),

@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
-from .models import NguoiDung, BanAn, DonHang, Order, ChiTietOrder, MonAn, DanhMuc
+from .models import NguoiDung, BanAn, DonHang, Order, ChiTietOrder, MonAn, DanhMuc, \
+AboutUs
+from .utils import get_table_status
 
 
 class UserSerializer(ModelSerializer):
@@ -27,39 +29,14 @@ class BanAnSerializer(ModelSerializer):
 
     def get_current_customer(self, obj):
         from django.utils import timezone
-        request = self.context.get('request')
-        slot = request.GET.get('slot') if request else None
-        
         today = timezone.now().date()
-        now = timezone.now()
         
-        if slot:
-            # Define time slots
-            slots = {
-                'morning': (8, 14),
-                'afternoon': (14, 20),
-                'evening': (20, 24)
-            }
-            if slot not in slots:
-                return None
-            
-            start_hour, end_hour = slots[slot]
-            
-            # Get active reservation in this slot
-            reservation = DonHang.objects.filter(
-                ban_an=obj, 
-                trang_thai__in=['pending', 'confirmed'],
-                ngay_dat__date=today,
-                ngay_dat__hour__gte=start_hour,
-                ngay_dat__hour__lt=end_hour if end_hour != 24 else 24
-            ).first()
-        else:
-            # Get any active reservation from today onwards
-            reservation = DonHang.objects.filter(
-                ban_an=obj, 
-                trang_thai__in=['pending', 'confirmed'],
-                ngay_dat__date__gte=today
-            ).first()
+        # Check active reservations in DonHang first
+        reservation = DonHang.objects.filter(
+            ban_an=obj, 
+            trang_thai__in=['pending', 'confirmed'],
+            ngay_dat__date__gte=today
+        ).first()
         
         if reservation:
             if reservation.khach_hang:
@@ -74,52 +51,44 @@ class BanAnSerializer(ModelSerializer):
                     'name': reservation.khach_vang_lai.ho_ten,
                     'phone': reservation.khach_vang_lai.so_dien_thoai
                 }
+        
+        # If no reservation, check active orders in Order (dine-in only)
+        order = Order.objects.filter(
+            ban_an=obj,
+            loai_order='dine_in',
+            trang_thai__in=['pending', 'confirmed', 'cooking', 'ready']
+        ).first()
+        
+        if order:
+            if order.khach_hang:
+                return {
+                    'type': 'registered',
+                    'name': order.khach_hang.ho_ten,
+                    'phone': order.khach_hang.so_dien_thoai
+                }
+            elif order.khach_vang_lai:
+                return {
+                    'type': 'guest',
+                    'name': order.khach_vang_lai.ho_ten,
+                    'phone': order.khach_vang_lai.so_dien_thoai
+                }
+        
         return None
 
     def get_status(self, obj):
-        from django.utils import timezone
-        request = self.context.get('request')
-        slot = request.GET.get('slot') if request else None
-        
-        today = timezone.now().date()
-        now = timezone.now()
-        
-        if slot:
-            # Define time slots
-            slots = {
-                'morning': (8, 14),
-                'afternoon': (14, 20),
-                'evening': (20, 24)  # Evening from 20:00 to 24:00
-            }
-            if slot not in slots:
-                return 'available'  # Invalid slot, default to available
-            
-            start_hour, end_hour = slots[slot]
-            # For evening, if end_hour == 24, check until next day 02:00
-            if end_hour == 24:
-                end_time = timezone.now().replace(hour=2, minute=0, second=0, microsecond=0) + timezone.timedelta(days=1)
-            else:
-                end_time = now.replace(hour=end_hour, minute=0, second=0, microsecond=0)
-            start_time = now.replace(hour=start_hour, minute=0, second=0, microsecond=0)
-            
-            # Check if table has reservations overlapping with this slot today
-            active_reservations = DonHang.objects.filter(
-                ban_an=obj, 
-                trang_thai__in=['pending', 'confirmed'],
-                ngay_dat__date=today,
-                ngay_dat__hour__gte=start_hour,
-                ngay_dat__hour__lt=end_hour if end_hour != 24 else 24
-            ).exists()
-            return 'occupied' if active_reservations else 'available'
-        else:
-            # Default logic: occupied if any active reservation from today onwards
-            active_reservations = DonHang.objects.filter(
-                ban_an=obj, 
-                trang_thai__in=['pending', 'confirmed'],
-                ngay_dat__date__gte=today
-            ).exists()
-            return 'occupied' if active_reservations else 'available'
+        return get_table_status(obj)
 
+    class Meta:
+        model = BanAn
+        fields = '__all__'
+
+
+class BanAnForReservationSerializer(ModelSerializer):
+    status = serializers.SerializerMethodField()
+
+    def get_status(self, obj):
+        return get_table_status(obj)
+    
     class Meta:
         model = BanAn
         fields = '__all__'
@@ -128,8 +97,7 @@ class BanAnSerializer(ModelSerializer):
 
 class DonHangSerializer(ModelSerializer):
     # declare these as explicit serializer fields so they are accepted from request body
-    suc_chua = serializers.IntegerField(write_only=True)
-    khu_vuc = serializers.ChoiceField(choices=BanAn.KHU_VUC, default='inside', write_only=True)
+    ban_an_id = serializers.IntegerField(write_only=True)
     khach_hang = UserSerializer(read_only=True)
     ban_an = BanAnSerializer(read_only=True)
 
@@ -139,48 +107,44 @@ class DonHangSerializer(ModelSerializer):
         print(data)
 
         # extract the helper fields passed in request body
-        suc_chua = data.pop('suc_chua', None)
-        khu_vuc = data.pop('khu_vuc', 'inside')
+        ban_an_id = data.pop('ban_an_id', None)
 
         # validation
-        if suc_chua is None:
-            raise serializers.ValidationError({ 'suc_chua': "Trường 'suc_chua' là bắt buộc" })
+        if ban_an_id is None:
+            raise serializers.ValidationError({ 'ban_an_id': "Trường 'ban_an_id' là bắt buộc" })
 
         ngay_dat = data.get('ngay_dat')
         if not ngay_dat:
             raise serializers.ValidationError({ 'ngay_dat': "Trường 'ngay_dat' là bắt buộc" })
 
-        # Determine slot based on hour
-        hour = ngay_dat.hour
-        if 8 <= hour < 14:
-            slot = 'morning'
-            start_hour, end_hour = 8, 14
-        elif 14 <= hour < 20:
-            slot = 'afternoon'
-            start_hour, end_hour = 14, 20
-        elif 20 <= hour < 24:
-            slot = 'evening'
-            start_hour, end_hour = 20, 24
-        else:
-            raise serializers.ValidationError({ 'ngay_dat': "Thời gian đặt phải trong khoảng 8:00 - 24:00" })
+        try:
+            ban_an = BanAn.objects.get(id=ban_an_id)
+        except BanAn.DoesNotExist:
+            raise serializers.ValidationError({ 'ban_an_id': "Bàn ăn không tồn tại" })
 
-        # find a matching table
-        available_tables = BanAn.objects.filter(suc_chua__gte=suc_chua, khu_vuc__exact=khu_vuc)
-        for ban_an in available_tables.order_by('suc_chua'):
-            # Check if table is available in this slot
-            active_reservations = DonHang.objects.filter(
-                ban_an=ban_an, 
-                trang_thai__in=['pending', 'confirmed'],
-                ngay_dat__date=ngay_dat.date(),
-                ngay_dat__hour__gte=start_hour,
-                ngay_dat__hour__lt=end_hour if end_hour != 24 else 24
-            ).exists()
-            if not active_reservations:
-                # Found available table
-                data['ban_an'] = ban_an
-                break
-        else:
-            raise serializers.ValidationError({ 'non_field_errors': ["Không tìm thấy bàn ăn phù hợp hoặc bàn đã được đặt trong khung giờ này"] })
+        # Check if table is available on this date
+        from django.utils import timezone
+        today = timezone.now().date()
+        
+        # Check active reservations in DonHang
+        active_reservations_donhang = DonHang.objects.filter(
+            ban_an=ban_an,
+            trang_thai__in=['pending', 'confirmed'],
+            ngay_dat__date=ngay_dat.date()
+        ).exists()
+        
+        # Check active orders in Order (dine-in only)
+        active_orders = Order.objects.filter(
+            ban_an=ban_an,
+            loai_order='dine_in',
+            trang_thai__in=['pending', 'confirmed', 'cooking', 'ready']
+        ).exists()
+        
+        if active_reservations_donhang or active_orders:
+            raise serializers.ValidationError({ 'non_field_errors': ["Bàn ăn đã được đặt hoặc đang sử dụng vào ngày này"] })
+
+        # Table is available
+        data['ban_an'] = ban_an
 
         khach_hang = self.context['request'].user   # object NguoiDung
         data['khach_hang'] = khach_hang
@@ -272,3 +236,8 @@ class DanhMucSerializer(ModelSerializer):
         model = DanhMuc
         fields = '__all__'
 
+
+class AboutUsSerializer(ModelSerializer):
+    class Meta:
+        model = AboutUs
+        fields = '__all__'

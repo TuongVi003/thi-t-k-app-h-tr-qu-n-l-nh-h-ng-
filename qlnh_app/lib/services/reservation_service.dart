@@ -4,6 +4,19 @@ import '../../models/model.dart';
 import '../constants/api.dart';
 
 class ReservationService {
+  static Future<List<BanAn>> getTablesForReservation(String khuVuc) async {
+    final uri = Uri.parse('${ApiEndpoints.baseUrl}/api/tables-for-reservations/?khu_vuc=$khuVuc');
+
+    final response = await http.get(uri);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
+      return data.map((json) => BanAn.fromJson(json as Map<String, dynamic>)).toList();
+    } else {
+      throw Exception('Không thể tải danh sách bàn: ${response.statusCode}');
+    }
+  }
+
   static Future<DonHang> makeReservation({
     required String accessToken,
     required int sucChua,
