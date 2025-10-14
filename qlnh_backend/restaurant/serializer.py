@@ -137,6 +137,7 @@ class DonHangSerializer(ModelSerializer):
         active_orders = Order.objects.filter(
             ban_an=ban_an,
             loai_order='dine_in',
+            order_time__date=ngay_dat.date(),
             trang_thai__in=['pending', 'confirmed', 'cooking', 'ready']
         ).exists()
         
@@ -195,13 +196,13 @@ class TakeawayOrderCreateSerializer(ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['id', 'ghi_chu', 'mon_an_list']
+        fields = ['id', 'ghi_chu', 'mon_an_list', 'thoi_gian_khach_lay']
     
     def create(self, validated_data):
         from django.utils import timezone
         
         mon_an_list = validated_data.pop('mon_an_list')
-        print(validated_data.get('thoi_gian_lay_mon'))
+        print('Thời gian khách lấy', validated_data.get('thoi_gian_khach_lay'))
         # Tạo order takeaway
         order = Order.objects.create(
             khach_hang=self.context['request'].user,

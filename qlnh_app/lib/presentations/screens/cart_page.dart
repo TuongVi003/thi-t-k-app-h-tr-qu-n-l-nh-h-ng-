@@ -54,7 +54,154 @@ class _CartTabState extends State<CartTab> {
       }
     }
 
-    // Show loading
+    // Pick date and time before showing loading
+    final thoiGianLayMon = await showDatePicker(
+      context: context,
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2040),
+      initialDate: DateTime.now(),
+      helpText: '',  // Empty to hide default helpText
+      builder: (context, child) {
+        return Dialog(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Custom large help text header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.accent, AppColors.accentDark],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(28),
+                    topRight: Radius.circular(28),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      color: AppColors.textWhite,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'CHỌN NGÀY LẤY MÓN',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textWhite,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Native picker with custom theme
+              Theme(
+                data: Theme.of(context).copyWith(
+                  colorScheme: ColorScheme.light(
+                    primary: AppColors.accent,
+                    onPrimary: AppColors.textWhite,
+                    surface: AppColors.surface,
+                    onSurface: AppColors.textPrimary,
+                  ),
+                  dialogBackgroundColor: AppColors.surface,
+                ),
+                child: child!,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    
+    if (thoiGianLayMon == null || !context.mounted) return;
+    
+    final gioLayMon = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      helpText: '',  // Empty to hide default helpText
+      builder: (context, child) {
+        return Dialog(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Custom large help text header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.accent, AppColors.accentDark],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(28),
+                    topRight: Radius.circular(28),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.access_time,
+                      color: AppColors.textWhite,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'CHỌN GIỜ LẤY MÓN',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textWhite,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Native picker with custom theme
+              Theme(
+                data: Theme.of(context).copyWith(
+                  colorScheme: ColorScheme.light(
+                    primary: AppColors.accent,
+                    onPrimary: AppColors.textWhite,
+                    surface: AppColors.surface,
+                    onSurface: AppColors.textPrimary,
+                  ),
+                  timePickerTheme: TimePickerThemeData(
+                    dialHandColor: AppColors.accent,
+                    dialBackgroundColor: AppColors.primaryVeryLight,
+                    hourMinuteTextColor: MaterialStateColor.resolveWith(
+                      (states) => AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                child: child!,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    
+    if (gioLayMon == null || !context.mounted) return;
+    
+    final ngayLayMon = DateTime(
+      thoiGianLayMon.year,
+      thoiGianLayMon.month,
+      thoiGianLayMon.day,
+      gioLayMon.hour,
+      gioLayMon.minute,
+    );
+
+    // Show loading after getting time
     if (context.mounted) {
       showDialog(
         context: context,
@@ -64,22 +211,6 @@ class _CartTabState extends State<CartTab> {
         ),
       );
     }
-    final thoiGianLayMon = await showDatePicker(
-      context: context,
-      firstDate: DateTime(2025),
-      lastDate: DateTime(2040),
-      initialDate: DateTime.now(),
-    );
-    print('Ngay ${thoiGianLayMon}');
-    if (thoiGianLayMon == null) return;
-    final gioLayMon = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
-    print('Gio ${gioLayMon}');
-    if (gioLayMon == null) return;
-    final ngayLayMon = DateTime(thoiGianLayMon.year, thoiGianLayMon.month,
-        thoiGianLayMon.day, gioLayMon.hour, gioLayMon.minute);
 
     try {
       // Convert CartItem to TakeawayCartItem

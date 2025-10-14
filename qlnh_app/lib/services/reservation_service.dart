@@ -22,6 +22,7 @@ class ReservationService {
     required int sucChua,
     required String khuVuc,
     required DateTime ngayDat,
+    required int banAnId,
     String trangThai = 'pending'
   }) async {
     final uri = Uri.parse(ApiEndpoints.makeReservation);
@@ -31,6 +32,7 @@ class ReservationService {
       'khu_vuc': khuVuc,
       'ngay_dat': ngayDat.toIso8601String(),
       'trang_thai': trangThai,
+      'ban_an_id': banAnId,
     });
 
     final response = await http.post(

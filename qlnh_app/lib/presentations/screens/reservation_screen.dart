@@ -124,15 +124,14 @@ class _ReservationScreenState extends State<ReservationScreen> {
           sucChua: _people,
           khuVuc: _area!,
           ngayDat: _dateTime!,
-          // Note: API might need to be updated to accept table_id
-          // For now, we'll keep the existing logic
+          banAnId: _selectedTable!.id,
         );
 
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đặt bàn thành công')));
 
         Navigator.pop(context);
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Không tìm thấy bàn phù hợp')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Đặt bàn thất bại: $e')));
       }
     }
   }

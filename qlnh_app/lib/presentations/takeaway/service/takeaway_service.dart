@@ -30,9 +30,9 @@ class TakeawayService {
               },
             )
             .toList(),
-        'thoi_gian_khach_lay': ngay,
+        if (ngay != null) 'thoi_gian_khach_lay': ngay.toIso8601String(),
       };
-      print('Ngay ===== ${ngay}');
+      print('Thoi gian khach lay: ${ngay?.toIso8601String()}');
 
       final response = await http
           .post(
