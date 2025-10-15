@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:qlnh_nhan_vien/models/table.dart' as models;
+import 'package:qlnh_nhan_vien/services/api_service.dart';
 
 class TableDetailDialog extends StatefulWidget {
   final models.Table table;
@@ -20,6 +21,7 @@ class _TableDetailDialogState extends State<TableDetailDialog> {
   final TextEditingController _customerNameController = TextEditingController();
   final TextEditingController _customerPhoneController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
+  bool _isClearing = false;
 
   @override
   void initState() {
@@ -249,24 +251,74 @@ class _TableDetailDialogState extends State<TableDetailDialog> {
             
             const SizedBox(height: 24),
             
-            // Nút action
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Hủy'),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: _saveChanges,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2E7D32),
-                    foregroundColor: Colors.white,
+            // Nút action (wrap để tránh overflow)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                alignment: WrapAlignment.end,
+                children: [
+                  if (currentTable.status == models.TableStatus.occupied)
+                    ElevatedButton.icon(
+                      onPressed: _isClearing ? null : () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Xác nhận dọn bàn'),
+                            content: Text('Bạn có chắc chắn muốn dọn bàn ${currentTable.number}?'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Hủy')),
+                              ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Xác nhận')),
+                            ],
+                          ),
+                        );
+
+                        if (confirm == true) {
+                          setState(() { _isClearing = true; });
+                          try {
+                            final resp = await ApiService.clearTableApi(int.parse(currentTable.id));
+                            // Update local table status to available
+                            setState(() { currentTable = currentTable.copyWith(status: models.TableStatus.available); });
+                            widget.onTableUpdated(currentTable);
+
+                            // Pop and return 'true' so caller can reload tables (like pressing refresh)
+                            Navigator.of(context).pop(true);
+
+                            // Show feedback to user
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(resp['message'] ?? 'Đã dọn bàn')), 
+                            );
+                            
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Lỗi khi dọn bàn: ${e.toString()}')),
+                            );
+                          } finally {
+                            setState(() { _isClearing = false; });
+                          }
+                        }
+                      },
+                      icon: _isClearing ? const SizedBox(width:16, height:16, child: CircularProgressIndicator(strokeWidth:2, color: Colors.white)) : const Icon(Icons.cleaning_services),
+                      label: Text(_isClearing ? 'Đang dọn...' : 'Dọn bàn'),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+                    ),
+
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Hủy'),
                   ),
-                  child: const Text('Lưu thay đổi'),
-                ),
-              ],
+
+                  ElevatedButton(
+                    onPressed: _saveChanges,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2E7D32),
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Lưu thay đổi'),
+                  ),
+                ],
+              ),
             ),
               ],
             ),

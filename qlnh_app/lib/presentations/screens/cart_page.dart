@@ -89,30 +89,39 @@ class _CartTabState extends State<CartTab> {
                       size: 28,
                     ),
                     const SizedBox(width: 12),
-                    Text(
-                      'CHỌN NGÀY LẤY MÓN',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textWhite,
-                        letterSpacing: 0.5,
+                    Expanded(
+                      child: Text(
+                        'CHỌN NGÀY LẤY MÓN',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textWhite,
+                          letterSpacing: 0.5,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
               ),
-              // Native picker with custom theme
-              Theme(
-                data: Theme.of(context).copyWith(
-                  colorScheme: ColorScheme.light(
-                    primary: AppColors.accent,
-                    onPrimary: AppColors.textWhite,
-                    surface: AppColors.surface,
-                    onSurface: AppColors.textPrimary,
-                  ),
-                  dialogBackgroundColor: AppColors.surface,
+              // Native picker with custom theme, constrained to avoid vertical overflow
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.6,
                 ),
-                child: child!,
+                child: Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: ColorScheme.light(
+                      primary: AppColors.accent,
+                      onPrimary: AppColors.textWhite,
+                      surface: AppColors.surface,
+                      onSurface: AppColors.textPrimary,
+                    ),
+                    dialogBackgroundColor: AppColors.surface,
+                  ),
+                  child: SingleChildScrollView(child: child!),
+                ),
               ),
             ],
           ),
@@ -154,36 +163,45 @@ class _CartTabState extends State<CartTab> {
                       size: 28,
                     ),
                     const SizedBox(width: 12),
-                    Text(
-                      'CHỌN GIỜ LẤY MÓN',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textWhite,
-                        letterSpacing: 0.5,
+                    Expanded(
+                      child: Text(
+                        'CHỌN GIỜ LẤY MÓN',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textWhite,
+                          letterSpacing: 0.5,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
               ),
-              // Native picker with custom theme
-              Theme(
-                data: Theme.of(context).copyWith(
-                  colorScheme: ColorScheme.light(
-                    primary: AppColors.accent,
-                    onPrimary: AppColors.textWhite,
-                    surface: AppColors.surface,
-                    onSurface: AppColors.textPrimary,
-                  ),
-                  timePickerTheme: TimePickerThemeData(
-                    dialHandColor: AppColors.accent,
-                    dialBackgroundColor: AppColors.primaryVeryLight,
-                    hourMinuteTextColor: MaterialStateColor.resolveWith(
-                      (states) => AppColors.textPrimary,
+              // Native picker with custom theme, constrained to avoid vertical overflow
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.6,
+                ),
+                child: Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: ColorScheme.light(
+                      primary: AppColors.accent,
+                      onPrimary: AppColors.textWhite,
+                      surface: AppColors.surface,
+                      onSurface: AppColors.textPrimary,
+                    ),
+                    timePickerTheme: TimePickerThemeData(
+                      dialHandColor: AppColors.accent,
+                      dialBackgroundColor: AppColors.primaryVeryLight,
+                      hourMinuteTextColor: MaterialStateColor.resolveWith(
+                        (states) => AppColors.textPrimary,
+                      ),
                     ),
                   ),
+                  child: SingleChildScrollView(child: child!),
                 ),
-                child: child!,
               ),
             ],
           ),

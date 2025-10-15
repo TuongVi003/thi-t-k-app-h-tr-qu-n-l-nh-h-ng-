@@ -129,7 +129,43 @@ class TableView(viewsets.ViewSet, generics.ListCreateAPIView):
     queryset = BanAn.objects.all()
     serializer_class = BanAnSerializer
 
-    
+    @action(detail=True, methods=['post'], url_path='clear-table')
+    def clear_table(self, request, pk=None):
+        """Nhân viên cập nhật trạng thái bàn về available bằng cách kết thúc các đơn đang active"""
+        # Check if user is employee
+        if request.user.loai_nguoi_dung != 'nhan_vien':
+            return Response({'error': 'Chỉ nhân viên mới được phép thực hiện'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            ban_an = BanAn.objects.get(pk=pk)
+        except BanAn.DoesNotExist:
+            return Response({'error': 'Bàn ăn không tồn tại'}, status=status.HTTP_404_NOT_FOUND)
+        
+        from django.utils import timezone
+        today = timezone.now().date()
+        
+        # Update active reservations in DonHang to canceled
+        updated_reservations = DonHang.objects.filter(
+            ban_an=ban_an,
+            trang_thai__in=['pending', 'confirmed'],
+            ngay_dat__date=today
+        ).update(trang_thai='completed')
+        
+        # Update active orders in Order to completed
+        updated_orders = Order.objects.filter(
+            ban_an=ban_an,
+            loai_order='dine_in',
+            order_time__date=today,
+            trang_thai__in=['pending', 'confirmed', 'cooking', 'ready']
+        ).update(trang_thai='completed')
+        
+        return Response({
+            'message': 'Đã cập nhật trạng thái bàn thành công',
+            'reservations_completed': updated_reservations,
+            'orders_completed': updated_orders,
+            'table_status': 'available'
+        })
+
 
 
 class UserTableView(viewsets.ViewSet, generics.ListAPIView):
@@ -261,15 +297,16 @@ class TakeawayOrderView(viewsets.ModelViewSet):
         if not request.user.dang_lam_viec:
             return Response({'error': 'Bạn chưa vào ca làm việc. Vui lòng check-in trước'}, status=status.HTTP_400_BAD_REQUEST)
         
-        thoi_gian_lay = request.data.get('thoi_gian_lay')
-        if not thoi_gian_lay:
-            return Response({'error': 'Vui lòng nhập thời gian lấy món'}, status=status.HTTP_400_BAD_REQUEST)
+        # thoi_gian_lay = request.data.get('thoi_gian_lay')
+        # if not thoi_gian_lay:
+        #     return Response({'error': 'Vui lòng nhập thời gian lấy món'}, status=status.HTTP_400_BAD_REQUEST)
         
-        order.thoi_gian_lay = thoi_gian_lay
+        # order.thoi_gian_lay = thoi_gian_lay
+        order.thoi_gian_lay = None
         order.trang_thai = 'cooking'
         order.save()
 
-        send_to_user(order.khach_hang, "Thời gian lấy món đã được xác nhận", f"Đơn hàng #{order.id} sẽ sẵn sàng sau {thoi_gian_lay} phút.")
+        # send_to_user(order.khach_hang, "Thời gian lấy món đã được xác nhận", f"Đơn hàng #{order.id} sẽ sẵn sàng sau {thoi_gian_lay} phút.")
         
         serializer = self.get_serializer(order)
         return Response(serializer.data)

@@ -1,6 +1,6 @@
 class ApiEndpoints {
- //static const String baseUrl = 'https://d9p0zhfk-8000.asse.devtunnels.ms';
-    static const String baseUrl = 'https://p61nc0b1-8000.asse.devtunnels.ms';
+ static const String baseUrl = 'https://d9p0zhfk-8000.asse.devtunnels.ms';
+    // static const String baseUrl = 'https://p61nc0b1-8000.asse.devtunnels.ms';
 
   // OAuth2 endpoints
   static const String login = '$baseUrl/o/token/';
@@ -20,6 +20,9 @@ class ApiEndpoints {
   static String acceptTakeawayOrder(int id) => '$baseUrl/api/takeaway/$id/accept-order/';
   static String confirmTakeawayTime(int id) => '$baseUrl/api/takeaway/$id/confirm-time/';
   static String updateTakeawayStatus(int id) => '$baseUrl/api/takeaway/$id/update-status/';
+
+  // Clear table (mark occupied -> available)
+  static String clearTable(int id) => '$baseUrl/api/tables/$id/clear-table/';
 
   // User Management
   static const String checkIn = '$baseUrl/api/users/check-in/';

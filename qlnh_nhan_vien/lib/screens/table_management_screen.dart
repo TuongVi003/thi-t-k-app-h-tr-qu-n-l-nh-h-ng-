@@ -15,15 +15,9 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
   List<models.Table> tables = [];
   models.TableStatus? selectedFilter;
   models.AreaType? selectedAreaFilter;
-  String? selectedSlot;
   bool isLoading = false;
   String? errorMessage;
 
-  final Map<String, String> slots = {
-    'morning': 'Sáng (8:00-14:00)',
-    'afternoon': 'Chiều (14:00-20:00)', 
-    'evening': 'Tối (20:00-24:00)',
-  };
 
   final Map<models.AreaType, String> areas = {
     models.AreaType.inside: 'Trong nhà',
@@ -44,7 +38,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
     });
 
     try {
-      final tablesFromApi = await ApiService.fetchTablesFromApi(slot: selectedSlot);
+      final tablesFromApi = await ApiService.fetchTablesFromApi();
       setState(() {
         tables = tablesFromApi;
         isLoading = false;
@@ -103,7 +97,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
   }
 
   void _showTableDetail(models.Table table) {
-    showDialog(
+    showDialog<bool>(
       context: context,
       builder: (context) => TableDetailDialog(
         table: table,
@@ -116,7 +110,11 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
           });
         },
       ),
-    );
+    ).then((didClear) {
+      if (didClear == true) {
+        _loadTables();
+      }
+    });
   }
 
   @override
@@ -137,12 +135,35 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Trạng thái bàn ăn',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Trạng thái bàn ăn hôm nay',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         if (isLoading)
@@ -222,38 +243,6 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Time slot filter
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.access_time, size: 18, color: const Color(0xFF2E7D32)),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Ca làm việc hôm nay:',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF2E7D32),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 6,
-                          children: [
-                            _buildImprovedSlotChip('Tất cả ca', null),
-                            _buildImprovedSlotChip('Sáng (8-14h)', 'morning'),
-                            _buildImprovedSlotChip('Chiều (14-20h)', 'afternoon'),
-                            _buildImprovedSlotChip('Tối (20-24h)', 'evening'),
-                          ],
-                        ),
-                      ],
-                    ),
-                    
                     const SizedBox(height: 16),
                     
                     // Area and Status filters
@@ -284,7 +273,6 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                                 spacing: 6,
                                 runSpacing: 6,
                                 children: [
-                                  _buildImprovedAreaChip('Tất cả', null),
                                   _buildImprovedAreaChip('Trong nhà', models.AreaType.inside),
                                   _buildImprovedAreaChip('Ngoài trời', models.AreaType.outside),
                                   _buildImprovedAreaChip('VIP', models.AreaType.privateRoom),
@@ -431,48 +419,6 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
   }
 
   // Improved chip builders with better UX
-  Widget _buildImprovedSlotChip(String label, String? slotValue) {
-    final isSelected = selectedSlot == slotValue;
-    
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            selectedSlot = selectedSlot == slotValue ? null : slotValue;
-            _loadTables();
-          });
-        },
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF2E7D32) : Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isSelected ? const Color(0xFF2E7D32) : Colors.grey[300]!,
-              width: 1.5,
-            ),
-            boxShadow: isSelected ? [
-              BoxShadow(
-                color: const Color(0xFF2E7D32).withOpacity(0.3),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ] : null,
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isSelected ? Colors.white : const Color(0xFF2E7D32),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildImprovedAreaChip(String label, models.AreaType? areaValue) {
     final isSelected = selectedAreaFilter == areaValue;

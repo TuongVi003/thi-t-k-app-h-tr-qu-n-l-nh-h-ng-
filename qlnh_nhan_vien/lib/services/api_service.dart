@@ -259,6 +259,32 @@ class ApiService {
     ];
   }
 
+  /// Gọi API để dọn/clear bàn (chuyển trạng thái occupied -> available)
+  /// Trả về JSON response của API dưới dạng Map<String, dynamic>
+  static Future<Map<String, dynamic>> clearTableApi(int tableId) async {
+    try {
+      final token = await AuthService.getValidToken();
+      if (token == null) throw Exception('Không có token hợp lệ.');
+
+      final response = await http.post(
+        Uri.parse(ApiEndpoints.clearTable(tableId)),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token.authorizationHeader,
+        },
+      ).timeout(const Duration(seconds: timeout));
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      } else {
+        final err = json.decode(response.body);
+        throw Exception(err['error'] ?? 'Failed to clear table: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error clearing table: $e');
+    }
+  }
+
   // Cập nhật trạng thái đơn đặt bàn
   static Future<DonHang> updateBookingStatus(int donHangId, String trangThai) async {
     try {

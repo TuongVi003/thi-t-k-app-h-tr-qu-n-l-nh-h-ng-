@@ -89,6 +89,7 @@ class DonHang(models.Model):
     STATUS_CHOICES = (
         ('pending', 'Chờ xác nhận'),
         ('confirmed', 'Đã xác nhận'),
+        ('completed', 'Đã hoàn thành'),
         ('canceled', 'Đã hủy'),
     )
     trang_thai = models.CharField(max_length=50, choices=STATUS_CHOICES)

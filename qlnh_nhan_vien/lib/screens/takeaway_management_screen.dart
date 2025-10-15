@@ -19,6 +19,12 @@ class _TakeawayManagementScreenState extends State<TakeawayManagementScreen> wit
   User? currentUser;
   bool isWorkingShift = false;
   DateTime? _lastRefreshTime;
+  
+  // Per-order loading states (use sets of order IDs)
+  final Set<int> acceptingIds = <int>{};
+  final Set<int> confirmingIds = <int>{};
+  final Set<int> markingReadyIds = <int>{};
+  final Set<int> completingIds = <int>{};
 
   @override
   bool get wantKeepAlive => true;
@@ -120,6 +126,9 @@ class _TakeawayManagementScreenState extends State<TakeawayManagementScreen> wit
       return;
     }
 
+    acceptingIds.add(order.id);
+    setState(() {});
+
     try {
       await TakeawayService.acceptOrder(order.id);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -130,66 +139,42 @@ class _TakeawayManagementScreenState extends State<TakeawayManagementScreen> wit
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Lỗi nhận đơn: ${e.toString()}')),
       );
+    } finally {
+      acceptingIds.remove(order.id);
+      if (mounted) setState(() {});
     }
   }
 
+  /// Start cooking: call confirmTime with null to indicate start cooking
   Future<void> _confirmTime(TakeawayOrder order) async {
-    final timeController = TextEditingController();
-    
-    final result = await showDialog<int>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xác nhận thời gian lấy món'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Đơn hàng #${order.id}'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: timeController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Thời gian (phút)',
-                border: OutlineInputBorder(),
-                suffixText: 'phút',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final time = int.tryParse(timeController.text);
-              if (time != null && time > 0) {
-                Navigator.pop(context, time);
-              }
-            },
-            child: const Text('Xác nhận'),
-          ),
-        ],
-      ),
-    );
+    confirmingIds.add(order.id);
+    setState(() {});
 
-    if (result != null) {
-      try {
-        await TakeawayService.confirmTime(order.id, result);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã xác nhận thời gian thành công')),
-        );
-        await _loadOrders();
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi xác nhận thời gian: ${e.toString()}')),
-        );
-      }
+    try {
+      await TakeawayService.confirmTime(order.id, null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã bắt đầu nấu')),
+      );
+      await _loadOrders();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi bắt đầu nấu: ${e.toString()}')),
+      );
+    } finally {
+      confirmingIds.remove(order.id);
+      if (mounted) setState(() {});
     }
   }
 
   Future<void> _updateStatus(TakeawayOrder order, TakeawayOrderStatus status) async {
+    final isReady = status == TakeawayOrderStatus.ready;
+    if (isReady) {
+      markingReadyIds.add(order.id);
+    } else {
+      completingIds.add(order.id);
+    }
+    setState(() {});
+
     try {
       await TakeawayService.updateStatus(order.id, status);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -201,6 +186,13 @@ class _TakeawayManagementScreenState extends State<TakeawayManagementScreen> wit
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Lỗi cập nhật trạng thái: ${e.toString()}')),
       );
+    } finally {
+      if (isReady) {
+        markingReadyIds.remove(order.id);
+      } else {
+        completingIds.remove(order.id);
+      }
+      if (mounted) setState(() {});
     }
   }
 
@@ -389,44 +381,68 @@ class _TakeawayManagementScreenState extends State<TakeawayManagementScreen> wit
                 children: [
                   if (canAccept)
                     ElevatedButton.icon(
-                      onPressed: () => _acceptOrder(order),
-                      icon: const Icon(Icons.check, size: 16),
-                      label: const Text('Nhận đơn'),
+                      onPressed: acceptingIds.contains(order.id) ? null : () => _acceptOrder(order),
+                      icon: acceptingIds.contains(order.id)
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.check, size: 16),
+                      label: Text(acceptingIds.contains(order.id) ? 'Đang...' : 'Nhận đơn'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
+                        backgroundColor: acceptingIds.contains(order.id) ? Colors.grey : Colors.blue,
                         foregroundColor: Colors.white,
                       ),
                     ),
                   
                   if (canConfirmTime)
                     ElevatedButton.icon(
-                      onPressed: () => _confirmTime(order),
-                      icon: const Icon(Icons.schedule, size: 16),
-                      label: const Text('Xác nhận thời gian'),
+                      onPressed: confirmingIds.contains(order.id) ? null : () => _confirmTime(order),
+                      icon: confirmingIds.contains(order.id)
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.kitchen, size: 16),
+                      label: Text(confirmingIds.contains(order.id) ? 'Đang...' : 'Bắt đầu nấu'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
+                        backgroundColor: confirmingIds.contains(order.id) ? Colors.grey : Colors.orange,
                         foregroundColor: Colors.white,
                       ),
                     ),
 
                   if (canMarkReady)
                     ElevatedButton.icon(
-                      onPressed: () => _updateStatus(order, TakeawayOrderStatus.ready),
-                      icon: const Icon(Icons.restaurant, size: 16),
-                      label: const Text('Món sẵn sàng'),
+                      onPressed: markingReadyIds.contains(order.id) ? null : () => _updateStatus(order, TakeawayOrderStatus.ready),
+                      icon: markingReadyIds.contains(order.id)
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.restaurant, size: 16),
+                      label: Text(markingReadyIds.contains(order.id) ? 'Đang...' : 'Món sẵn sàng'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
+                        backgroundColor: markingReadyIds.contains(order.id) ? Colors.grey : Colors.green,
                         foregroundColor: Colors.white,
                       ),
                     ),
 
                   if (canComplete)
                     ElevatedButton.icon(
-                      onPressed: () => _updateStatus(order, TakeawayOrderStatus.completed),
-                      icon: const Icon(Icons.done_all, size: 16),
-                      label: const Text('Hoàn thành'),
+                      onPressed: completingIds.contains(order.id) ? null : () => _updateStatus(order, TakeawayOrderStatus.completed),
+                      icon: completingIds.contains(order.id)
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.done_all, size: 16),
+                      label: Text(completingIds.contains(order.id) ? 'Đang...' : 'Hoàn thành'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey,
+                        backgroundColor: completingIds.contains(order.id) ? Colors.grey : Colors.grey,
                         foregroundColor: Colors.white,
                       ),
                     ),

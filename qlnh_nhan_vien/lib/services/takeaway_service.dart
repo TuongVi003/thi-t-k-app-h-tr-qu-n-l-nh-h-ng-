@@ -70,7 +70,10 @@ class TakeawayService {
   }
 
   /// Xác nhận thời gian lấy món
-  static Future<TakeawayOrder> confirmTime(int orderId, int thoiGianLay) async {
+  ///
+  /// If [thoiGianLay] is null, the API will receive `thoi_gian_lay: null` which
+  /// indicates starting the cooking process without setting an explicit pickup time.
+  static Future<TakeawayOrder> confirmTime(int orderId, int? thoiGianLay) async {
     try {
       final token = await AuthService.getValidToken();
       

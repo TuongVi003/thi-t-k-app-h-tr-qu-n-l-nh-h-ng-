@@ -18,8 +18,13 @@ class TakeawayOrderDetailScreen extends StatefulWidget {
 
 class _TakeawayOrderDetailScreenState extends State<TakeawayOrderDetailScreen> {
   late TakeawayOrder order;
-  bool isLoading = false;
   User? currentUser;
+  
+  // Individual loading states for each action
+  bool isAccepting = false;
+  bool isConfirmingTime = false;
+  bool isMarkingReady = false;
+  bool isCompleting = false;
 
   @override
   void initState() {
@@ -41,7 +46,7 @@ class _TakeawayOrderDetailScreenState extends State<TakeawayOrderDetailScreen> {
 
   Future<void> _acceptOrder() async {
     setState(() {
-      isLoading = true;
+      isAccepting = true;
     });
 
     try {
@@ -59,86 +64,47 @@ class _TakeawayOrderDetailScreenState extends State<TakeawayOrderDetailScreen> {
       );
     } finally {
       setState(() {
-        isLoading = false;
+        isAccepting = false;
       });
     }
   }
 
+  /// Start cooking: call confirmTime with null to indicate start cooking without setting pickup time.
   Future<void> _confirmTime() async {
-    final timeController = TextEditingController();
-    
-    final result = await showDialog<int>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xác nhận thời gian lấy món'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Đơn hàng #${order.id}'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: timeController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Thời gian (phút)',
-                border: OutlineInputBorder(),
-                suffixText: 'phút',
-                helperText: 'Ví dụ: 15, 20, 30...',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final time = int.tryParse(timeController.text);
-              if (time != null && time > 0) {
-                Navigator.pop(context, time);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Vui lòng nhập thời gian hợp lệ')),
-                );
-              }
-            },
-            child: const Text('Xác nhận'),
-          ),
-        ],
-      ),
-    );
+    setState(() {
+      isConfirmingTime = true;
+    });
 
-    if (result != null) {
+    try {
+      // Send thoi_gian_lay: null to start cooking
+      final updatedOrder = await TakeawayService.confirmTime(order.id, null);
       setState(() {
-        isLoading = true;
+        order = updatedOrder;
       });
 
-      try {
-        final updatedOrder = await TakeawayService.confirmTime(order.id, result);
-        setState(() {
-          order = updatedOrder;
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã xác nhận thời gian thành công')),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi xác nhận thời gian: ${e.toString()}')),
-        );
-      } finally {
-        setState(() {
-          isLoading = false;
-        });
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã bắt đầu nấu')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi bắt đầu nấu: ${e.toString()}')),
+      );
+    } finally {
+      setState(() {
+        isConfirmingTime = false;
+      });
     }
   }
 
   Future<void> _updateStatus(TakeawayOrderStatus status) async {
+    final isReadyAction = status == TakeawayOrderStatus.ready;
+    
     setState(() {
-      isLoading = true;
+      if (isReadyAction) {
+        isMarkingReady = true;
+      } else {
+        isCompleting = true;
+      }
     });
 
     try {
@@ -156,7 +122,11 @@ class _TakeawayOrderDetailScreenState extends State<TakeawayOrderDetailScreen> {
       );
     } finally {
       setState(() {
-        isLoading = false;
+        if (isReadyAction) {
+          isMarkingReady = false;
+        } else {
+          isCompleting = false;
+        }
       });
     }
   }
@@ -199,13 +169,11 @@ class _TakeawayOrderDetailScreenState extends State<TakeawayOrderDetailScreen> {
         backgroundColor: const Color(0xFF2E7D32),
         foregroundColor: Colors.white,
       ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
                 // Status card
                 Card(
                   child: Padding(
@@ -491,57 +459,82 @@ class _TakeawayOrderDetailScreenState extends State<TakeawayOrderDetailScreen> {
             ),
           ),
 
-          // Loading overlay
-          if (isLoading)
-            Container(
-              color: Colors.black.withOpacity(0.3),
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
-            ),
-        ],
-      ),
-
       // Floating action buttons
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           if (canAccept) ...[
             FloatingActionButton.extended(
-              onPressed: _acceptOrder,
-              backgroundColor: Colors.blue,
-              icon: const Icon(Icons.check),
-              label: const Text('Nhận đơn'),
+              onPressed: isAccepting ? null : _acceptOrder,
+              backgroundColor: isAccepting ? Colors.grey : Colors.blue,
+              icon: isAccepting 
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.check),
+              label: Text(isAccepting ? 'Đang xử lý...' : 'Nhận đơn'),
             ),
             const SizedBox(height: 8),
           ],
           
           if (canConfirmTime) ...[
             FloatingActionButton.extended(
-              onPressed: _confirmTime,
-              backgroundColor: Colors.orange,
-              icon: const Icon(Icons.schedule),
-              label: const Text('Xác nhận thời gian'),
+              onPressed: isConfirmingTime ? null : _confirmTime,
+              backgroundColor: isConfirmingTime ? Colors.grey : Colors.orange,
+              icon: isConfirmingTime 
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.schedule),
+              label: Text(isConfirmingTime ? 'Đang xử lý...' : 'Bắt đầu nấu'),
             ),
             const SizedBox(height: 8),
           ],
 
           if (canMarkReady) ...[
             FloatingActionButton.extended(
-              onPressed: () => _updateStatus(TakeawayOrderStatus.ready),
-              backgroundColor: Colors.green,
-              icon: const Icon(Icons.restaurant),
-              label: const Text('Món sẵn sàng'),
+              onPressed: isMarkingReady ? null : () => _updateStatus(TakeawayOrderStatus.ready),
+              backgroundColor: isMarkingReady ? Colors.grey : Colors.green,
+              icon: isMarkingReady 
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.restaurant),
+              label: Text(isMarkingReady ? 'Đang xử lý...' : 'Món sẵn sàng'),
             ),
             const SizedBox(height: 8),
           ],
 
           if (canComplete) ...[
             FloatingActionButton.extended(
-              onPressed: () => _updateStatus(TakeawayOrderStatus.completed),
-              backgroundColor: Colors.grey,
-              icon: const Icon(Icons.done_all),
-              label: const Text('Hoàn thành'),
+              onPressed: isCompleting ? null : () => _updateStatus(TakeawayOrderStatus.completed),
+              backgroundColor: isCompleting ? Colors.grey : Colors.grey,
+              icon: isCompleting 
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.done_all),
+              label: Text(isCompleting ? 'Đang xử lý...' : 'Hoàn thành'),
             ),
           ],
         ],
