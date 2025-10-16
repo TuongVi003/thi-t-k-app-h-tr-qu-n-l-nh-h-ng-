@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:qlnh_nhan_vien/screens/dashboard_screen.dart';
 import 'package:qlnh_nhan_vien/screens/login_screen.dart';
 import 'package:qlnh_nhan_vien/services/auth_service.dart';
@@ -137,6 +138,16 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: 'Quản Lý Nhà Hàng - Nhân Viên',
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('vi', 'VN'), // Vietnamese
+        Locale('en', 'US'), // English
+      ],
+      locale: const Locale('vi', 'VN'),
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF2E7D32),

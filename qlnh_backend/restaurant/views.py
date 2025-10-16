@@ -16,7 +16,7 @@ from .utils import send_to_user  # import hàm gửi notification
 
 from restaurant.serializer import (BanAnForReservationSerializer, UserSerializer, BanAnSerializer, DonHangSerializer, 
                                   OrderSerializer, TakeawayOrderCreateSerializer, 
-                                  OrderStatusUpdateSerializer, MonAnSerializer, DanhMucSerializer, AboutUsSerializer)
+                                  OrderStatusUpdateSerializer, MonAnSerializer, DanhMucSerializer, AboutUsSerializer, HotlineReservationSerializer)
 from .models import DonHang, NguoiDung, BanAn, Order, MonAn, DanhMuc, FCMDevice, ChiTietOrder, AboutUs
 
 
@@ -102,6 +102,23 @@ class DonHangView(viewsets.ViewSet, generics.ListCreateAPIView):
             serializer.save()
             return Response(status=201, data=serializer.data)
         return Response(status=400, data=serializer.errors)
+
+    @action(detail=False, methods=['post'], url_path='hotline-reservation')
+    def hotline_reservation(self, request):
+        """Nhân viên đặt bàn qua hotline cho khách vãng lai"""
+        # Check if user is employee
+        if request.user.loai_nguoi_dung != 'nhan_vien':
+            return Response({'error': 'Chỉ nhân viên mới được đặt bàn qua hotline'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Check if employee has checked in
+        if not request.user.dang_lam_viec:
+            return Response({'error': 'Vui lòng check-in trước khi đặt bàn'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer = HotlineReservationSerializer(data=request.data)
+        if serializer.is_valid():
+            reservation = serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['patch'], url_path='update-status')
     def update_status(self, request, pk=None):

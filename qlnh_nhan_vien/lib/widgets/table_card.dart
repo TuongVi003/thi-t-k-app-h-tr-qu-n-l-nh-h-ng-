@@ -151,34 +151,46 @@ class TableCard extends StatelessWidget {
                         Text(
                           table.customerName!,
                           style: const TextStyle(
-                            fontSize: 8,
+                            fontSize: 15,
                             fontWeight: FontWeight.w500,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         // Số điện thoại (nếu có)
-                        if (table.customerPhone != null) ...[
-                          const SizedBox(height: 1),
-                          Text(
-                            table.customerPhone!,
-                            style: const TextStyle(
-                              fontSize: 7,
-                              color: Colors.grey,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                        // if (table.customerPhone != null) ...[
+                        //   const SizedBox(height: 1),
+                        //   Text(
+                        //     table.customerPhone!,
+                        //     style: const TextStyle(
+                        //       fontSize: 7,
+                        //       color: Colors.grey,
+                        //     ),
+                        //     maxLines: 1,
+                        //     overflow: TextOverflow.ellipsis,
+                        //   ),
+                        // ],
                         // Thời gian đặt (nếu có)
                         if (table.reservationTime != null) ...[
-                          const SizedBox(height: 1),
-                          Text(
-                            '${table.reservationTime!.hour.toString().padLeft(2, '0')}:${table.reservationTime!.minute.toString().padLeft(2, '0')}',
-                            style: const TextStyle(
-                              fontSize: 7,
-                              color: Colors.grey,
-                            ),
+                          const SizedBox(height: 2),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.access_time,
+                                size: 15,
+                                color: Colors.orange[700],
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                table.reservationTimeDisplay,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.orange[700],
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ],

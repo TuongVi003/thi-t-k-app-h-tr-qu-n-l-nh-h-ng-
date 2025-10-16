@@ -285,6 +285,57 @@ class ApiService {
     }
   }
 
+  /// Nhân viên đặt bàn dùm khách hàng gọi qua hotline
+  /// Trả về thông tin đơn hàng và bàn ăn đã được đặt
+  static Future<Map<String, dynamic>> createHotlineReservation({
+    required int banAnId,
+    required String khachHoTen,
+    required String khachSoDienThoai,
+    required String ngayDat, // ISO 8601 format
+    String trangThai = 'pending',
+  }) async {
+    try {
+      final token = await AuthService.getValidToken();
+      if (token == null) throw Exception('Không có token hợp lệ.');
+
+      print('📞 Creating hotline reservation:');
+      print('   Table: $banAnId, Customer: $khachHoTen, Phone: $khachSoDienThoai');
+      print('   Date: $ngayDat, Status: $trangThai');
+
+      final response = await http.post(
+        Uri.parse(ApiEndpoints.nhanVienMakeDonhang),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token.authorizationHeader,
+        },
+        body: json.encode({
+          'ban_an_id': banAnId,
+          'khach_ho_ten': khachHoTen,
+          'khach_so_dien_thoai': khachSoDienThoai,
+          'ngay_dat': ngayDat,
+          'trang_thai': trangThai,
+        }),
+      ).timeout(const Duration(seconds: timeout));
+
+      print('📞 Response status: ${response.statusCode}');
+      print('📞 Response body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      } else {
+        final err = json.decode(response.body);
+        // Xử lý lỗi bàn đã được đặt
+        if (err['non_field_errors'] != null) {
+          throw Exception(err['non_field_errors'][0]);
+        }
+        throw Exception(err['error'] ?? 'Failed to create reservation: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('📞 Error creating hotline reservation: $e');
+      throw Exception('Lỗi khi đặt bàn: $e');
+    }
+  }
+
   // Cập nhật trạng thái đơn đặt bàn
   static Future<DonHang> updateBookingStatus(int donHangId, String trangThai) async {
     try {

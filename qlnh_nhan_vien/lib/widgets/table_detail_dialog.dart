@@ -125,20 +125,60 @@ class _TableDetailDialogState extends State<TableDetailDialog> {
                   color: _getStatusColor(currentTable.status).withOpacity(0.3),
                 ),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    _getStatusIcon(currentTable.status),
-                    color: _getStatusColor(currentTable.status),
+                  Row(
+                    children: [
+                      Icon(
+                        _getStatusIcon(currentTable.status),
+                        color: _getStatusColor(currentTable.status),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Trạng thái: ${_getStatusText(currentTable.status)}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: _getStatusColor(currentTable.status),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Trạng thái: ${_getStatusText(currentTable.status)}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      color: _getStatusColor(currentTable.status),
+                  // Hiển thị thời gian đặt bàn
+                  if (currentTable.reservationTime != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: 18,
+                          color: Colors.orange[700],
+                        ),
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Thời gian: ${currentTable.reservationTimeDisplay}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.orange[700],
+                                fontSize: 14,
+                              ),
+                            ),
+                            if (currentTable.occupancyType != null)
+                              Text(
+                                currentTable.occupancyTypeDisplay,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),

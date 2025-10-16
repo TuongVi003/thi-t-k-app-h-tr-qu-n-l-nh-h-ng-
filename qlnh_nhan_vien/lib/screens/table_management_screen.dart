@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:qlnh_nhan_vien/models/table.dart' as models;
 import 'package:qlnh_nhan_vien/widgets/table_card.dart';
 import 'package:qlnh_nhan_vien/widgets/table_detail_dialog.dart';
+import 'package:qlnh_nhan_vien/widgets/hotline_reservation_dialog.dart';
 import 'package:qlnh_nhan_vien/services/api_service.dart';
 
 class TableManagementScreen extends StatefulWidget {
@@ -35,15 +36,21 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
     setState(() {
       isLoading = true;
       errorMessage = null;
+      tables = []; // Clear old data before loading
     });
 
     try {
       final tablesFromApi = await ApiService.fetchTablesFromApi();
+      print('📋 Loaded ${tablesFromApi.length} tables from API');
+      for (var table in tablesFromApi) {
+        print('   Table ${table.number}: ${table.status} - Customer: ${table.customerName ?? "none"}');
+      }
       setState(() {
         tables = tablesFromApi;
         isLoading = false;
       });
     } catch (e) {
+      print('❌ Error loading tables: $e');
       setState(() {
         errorMessage = 'Lỗi tải dữ liệu: $e';
         isLoading = false;
@@ -97,24 +104,40 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
   }
 
   void _showTableDetail(models.Table table) {
-    showDialog<bool>(
+    // Nếu bàn trống, hiện dialog đặt bàn hotline
+    if (table.status == models.TableStatus.available) {
+      _showHotlineReservationDialog(preselectedTable: table);
+    } else {
+      // Nếu bàn đã có khách, hiện dialog chi tiết
+      showDialog<bool>(
+        context: context,
+        builder: (context) => TableDetailDialog(
+          table: table,
+          onTableUpdated: (updatedTable) {
+            setState(() {
+              final index = tables.indexWhere((t) => t.id == updatedTable.id);
+              if (index >= 0) {
+                tables[index] = updatedTable;
+              }
+            });
+          },
+        ),
+      ).then((didClear) {
+        if (didClear == true) {
+          _loadTables();
+        }
+      });
+    }
+  }
+
+  void _showHotlineReservationDialog({models.Table? preselectedTable}) {
+    showDialog(
       context: context,
-      builder: (context) => TableDetailDialog(
-        table: table,
-        onTableUpdated: (updatedTable) {
-          setState(() {
-            final index = tables.indexWhere((t) => t.id == updatedTable.id);
-            if (index >= 0) {
-              tables[index] = updatedTable;
-            }
-          });
-        },
+      builder: (context) => HotlineReservationDialog(
+        preselectedTable: preselectedTable,
+        onReservationSuccess: _loadTables,
       ),
-    ).then((didClear) {
-      if (didClear == true) {
-        _loadTables();
-      }
-    });
+    );
   }
 
   @override
@@ -367,6 +390,18 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
           ),
         ),
       ),
+      // floatingActionButton: FloatingActionButton.extended(
+      //   onPressed: _showHotlineReservationDialog,
+      //   backgroundColor: const Color(0xFF2E7D32),
+      //   icon: const Icon(Icons.phone_in_talk, color: Colors.white),
+      //   label: const Text(
+      //     'Đặt bàn Hotline',
+      //     style: TextStyle(
+      //       color: Colors.white,
+      //       fontWeight: FontWeight.bold,
+      //     ),
+      //   ),
+      // ),
     );
   }
 

@@ -1,8 +1,8 @@
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 from .models import NguoiDung, BanAn, DonHang, Order, ChiTietOrder, MonAn, DanhMuc, \
-AboutUs
-from .utils import get_table_status
+AboutUs, KhachVangLai
+from .utils import get_table_status, get_table_status_at, get_table_occupancy_info
 
 
 class UserSerializer(ModelSerializer):
@@ -26,6 +26,7 @@ class UserSerializer(ModelSerializer):
 class BanAnSerializer(ModelSerializer):
     status = serializers.SerializerMethodField()
     current_customer = serializers.SerializerMethodField()
+    occupancy_time = serializers.SerializerMethodField()
 
     def get_current_customer(self, obj):
         from django.utils import timezone
@@ -35,7 +36,7 @@ class BanAnSerializer(ModelSerializer):
         reservation = DonHang.objects.filter(
             ban_an=obj, 
             trang_thai__in=['pending', 'confirmed'],
-            ngay_dat__date__gte=today
+            ngay_dat__date=today
         ).first()
         
         if reservation:
@@ -56,7 +57,8 @@ class BanAnSerializer(ModelSerializer):
         order = Order.objects.filter(
             ban_an=obj,
             loai_order='dine_in',
-            trang_thai__in=['pending', 'confirmed', 'cooking', 'ready']
+            trang_thai__in=['pending', 'confirmed', 'cooking', 'ready'],
+            order_time__date=today
         ).first()
         
         if order:
@@ -75,6 +77,18 @@ class BanAnSerializer(ModelSerializer):
         
         return None
 
+    def get_occupancy_time(self, obj):
+        """Trả về thông tin ngày giờ khi bàn bị chiếm dụng"""
+        occupancy_info = get_table_occupancy_info(obj)
+        if occupancy_info:
+            return {
+                'type': occupancy_info['type'],
+                'date': occupancy_info['date'].isoformat(),
+                'time': occupancy_info['time'].isoformat(),
+                'datetime': occupancy_info['datetime'].isoformat()
+            }
+        return None
+
     def get_status(self, obj):
         return get_table_status(obj)
 
@@ -85,6 +99,7 @@ class BanAnSerializer(ModelSerializer):
 
 class BanAnForReservationSerializer(ModelSerializer):
     status = serializers.SerializerMethodField()
+    occupancy_time = serializers.SerializerMethodField()
 
     def get_status(self, obj):
         return get_table_status(obj)
@@ -243,3 +258,81 @@ class AboutUsSerializer(ModelSerializer):
     class Meta:
         model = AboutUs
         fields = '__all__'
+
+
+class HotlineReservationSerializer(ModelSerializer):
+    """Serializer dành cho nhân viên đặt bàn qua hotline cho khách vãng lai"""
+    ban_an_id = serializers.IntegerField(write_only=True)
+    khach_ho_ten = serializers.CharField(write_only=True, max_length=100)
+    khach_so_dien_thoai = serializers.CharField(write_only=True, max_length=15)
+    
+    # Return fields
+    khach_vang_lai = serializers.SerializerMethodField(read_only=True)
+    ban_an = BanAnSerializer(read_only=True)
+    
+    def get_khach_vang_lai(self, obj):
+        if obj.khach_vang_lai:
+            return {
+                'id': obj.khach_vang_lai.id,
+                'ho_ten': obj.khach_vang_lai.ho_ten,
+                'so_dien_thoai': obj.khach_vang_lai.so_dien_thoai
+            }
+        return None
+
+    def create(self, validated_data):
+        from django.utils import timezone
+        
+        # Extract data
+        ban_an_id = validated_data.pop('ban_an_id')
+        khach_ho_ten = validated_data.pop('khach_ho_ten')
+        khach_so_dien_thoai = validated_data.pop('khach_so_dien_thoai')
+        
+        # Validation
+        if not ban_an_id:
+            raise serializers.ValidationError({'ban_an_id': "Trường 'ban_an_id' là bắt buộc"})
+        
+        if not khach_ho_ten:
+            raise serializers.ValidationError({'khach_ho_ten': "Vui lòng cung cấp tên khách hàng"})
+        
+        if not khach_so_dien_thoai:
+            raise serializers.ValidationError({'khach_so_dien_thoai': "Vui lòng cung cấp số điện thoại khách hàng"})
+        
+        # Get table
+        try:
+            ban_an = BanAn.objects.get(id=ban_an_id)
+        except BanAn.DoesNotExist:
+            raise serializers.ValidationError({'ban_an_id': "Bàn ăn không tồn tại"})
+        
+        # Get reservation date
+        ngay_dat = validated_data.get('ngay_dat')
+        if not ngay_dat:
+            raise serializers.ValidationError({'ngay_dat': "Trường 'ngay_dat' là bắt buộc"})
+        
+        if get_table_status_at(ban_an, ngay_dat) == 'occupied':
+            raise serializers.ValidationError({'non_field_errors': ["Bàn ăn đã được đặt hoặc đang sử dụng vào ngày này"]})
+        
+        # Get or create guest
+        khach_vang_lai, created = KhachVangLai.objects.get_or_create(
+            so_dien_thoai=khach_so_dien_thoai,
+            defaults={'ho_ten': khach_ho_ten}
+        )
+        
+        # If guest exists but name is different, update the name
+        if not created and khach_vang_lai.ho_ten != khach_ho_ten:
+            khach_vang_lai.ho_ten = khach_ho_ten
+            khach_vang_lai.save()
+        
+        # Create reservation
+        validated_data['ban_an'] = ban_an
+        validated_data['khach_vang_lai'] = khach_vang_lai
+        
+        don_hang = DonHang(**validated_data)
+        don_hang.save()
+        
+        return don_hang
+
+    class Meta:
+        model = DonHang
+        fields = ['id', 'ban_an_id', 'ban_an', 'khach_ho_ten', 'khach_so_dien_thoai', 
+                  'khach_vang_lai', 'ngay_dat', 'trang_thai']
+        read_only_fields = ['id', 'ban_an', 'khach_vang_lai']

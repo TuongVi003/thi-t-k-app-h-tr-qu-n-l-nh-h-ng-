@@ -43,6 +43,7 @@ class Table {
   String? customerPhone;
   CustomerType? customerType;
   DateTime? reservationTime;
+  String? occupancyType; // 'reservation' or 'walk-in'
   String? notes;
 
   Table({
@@ -56,6 +57,7 @@ class Table {
     this.customerPhone,
     this.customerType,
     this.reservationTime,
+    this.occupancyType,
     this.notes,
   });
 
@@ -71,6 +73,7 @@ class Table {
     String? customerPhone,
     CustomerType? customerType,
     DateTime? reservationTime,
+    String? occupancyType,
     String? notes,
   }) {
     return Table(
@@ -84,6 +87,7 @@ class Table {
       customerPhone: customerPhone ?? this.customerPhone,
       customerType: customerType ?? this.customerType,
       reservationTime: reservationTime ?? this.reservationTime,
+      occupancyType: occupancyType ?? this.occupancyType,
       notes: notes ?? this.notes,
     );
   }  Map<String, dynamic> toJson() {
@@ -173,6 +177,21 @@ class Table {
       }
     }
     
+    // Xử lý occupancy_time
+    DateTime? reservationTime;
+    String? occupancyType;
+    final occupancyTimeData = tableJson['occupancy_time'];
+    if (occupancyTimeData != null) {
+      occupancyType = occupancyTimeData['type']; // 'reservation' or 'walk-in'
+      if (occupancyTimeData['datetime'] != null) {
+        try {
+          reservationTime = DateTime.parse(occupancyTimeData['datetime']);
+        } catch (e) {
+          print('Error parsing datetime: $e');
+        }
+      }
+    }
+    
     String notes = 'Khu vực: $khuVucDisplay';
     if (customerName != null) {
       String customerTypeText = customerType == CustomerType.guest ? 'Khách vãng lai' : 'Khách hàng';
@@ -191,6 +210,8 @@ class Table {
       customerName: customerName,
       customerPhone: customerPhone,
       customerType: customerType,
+      reservationTime: reservationTime,
+      occupancyType: occupancyType,
       notes: notes,
     );
   }
@@ -248,6 +269,27 @@ class Table {
 
   // Getter để kiểm tra có khách hàng hay không
   bool get hasCustomer => customerName != null && customerName!.isNotEmpty;
+
+  // Getter để format thời gian hiển thị
+  String get reservationTimeDisplay {
+    if (reservationTime == null) return '';
+    final hour = reservationTime!.hour.toString().padLeft(2, '0');
+    final minute = reservationTime!.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  // Getter để lấy text loại đặt bàn
+  String get occupancyTypeDisplay {
+    if (occupancyType == null) return '';
+    switch (occupancyType!) {
+      case 'reservation':
+        return 'Đặt trước';
+      case 'walk-in':
+        return 'Khách vãng lai';
+      default:
+        return occupancyType!;
+    }
+  }
 
   // Factory constructor để tạo Table từ DonHang API (deprecated - giữ lại để tương thích)
   factory Table.fromDonHangApi(Map<String, dynamic> donHangJson) {
