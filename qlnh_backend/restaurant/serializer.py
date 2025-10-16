@@ -99,7 +99,6 @@ class BanAnSerializer(ModelSerializer):
 
 class BanAnForReservationSerializer(ModelSerializer):
     status = serializers.SerializerMethodField()
-    occupancy_time = serializers.SerializerMethodField()
 
     def get_status(self, obj):
         return get_table_status(obj)
