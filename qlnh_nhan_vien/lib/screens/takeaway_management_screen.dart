@@ -4,6 +4,7 @@ import '../services/takeaway_service.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import 'takeaway_order_detail_screen.dart';
+import 'staff_create_takeaway_screen.dart';
 
 class TakeawayManagementScreen extends StatefulWidget {
   const TakeawayManagementScreen({super.key});
@@ -550,6 +551,24 @@ class _TakeawayManagementScreenState extends State<TakeawayManagementScreen> wit
           ),
         ],
       ),
+      floatingActionButton: isWorkingShift
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const StaffCreateTakeawayScreen(),
+                  ),
+                );
+                if (result == true) {
+                  _loadOrders();
+                }
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Tạo đơn mang về'),
+              backgroundColor: Colors.green,
+            )
+          : null,
     );
   }
 }

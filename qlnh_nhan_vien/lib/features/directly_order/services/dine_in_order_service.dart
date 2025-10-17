@@ -319,4 +319,51 @@ class DineInOrderService {
       throw Exception('Lỗi kết nối: $e');
     }
   }
+
+  // Thêm món vào đơn hàng đang có
+  Future<Map<String, dynamic>> addItemsToOrder(int orderId, List<OrderItem> items) async {
+    try {
+      print('➕ [DineInOrderService] Thêm món vào đơn #$orderId');
+      print('📦 [DineInOrderService] Số món: ${items.length}');
+      
+      final token = await _getToken();
+      if (token == null) {
+        print('❌ [DineInOrderService] Token null - chưa đăng nhập');
+        throw Exception('Chưa đăng nhập');
+      }
+
+      final url = '${ApiEndpoints.baseUrl}/api/dine-in/$orderId/add-items/';
+      print('🌐 [DineInOrderService] URL: $url');
+      
+      final body = {
+        'mon_an_list': items.map((item) => item.toJson()).toList(),
+      };
+      print('📦 [DineInOrderService] Body: ${json.encode(body)}');
+      
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Authorization': token,
+          'Content-Type': 'application/json',
+        },
+        body: json.encode(body),
+      );
+
+      print('📡 [DineInOrderService] Response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = json.decode(utf8.decode(response.bodyBytes));
+        print('✅ [DineInOrderService] ${data['message']}');
+        return data;
+      } else {
+        print('❌ [DineInOrderService] Lỗi ${response.statusCode}: ${response.body}');
+        final error = json.decode(utf8.decode(response.bodyBytes));
+        throw Exception(error['error'] ?? 'Không thể thêm món: ${response.statusCode}');
+      }
+    } catch (e, stackTrace) {
+      print('❌ [DineInOrderService] Exception: $e');
+      print('📍 Stack trace: $stackTrace');
+      throw Exception('Lỗi kết nối: $e');
+    }
+  }
 }

@@ -273,8 +273,10 @@ class Table {
   // Getter để format thời gian hiển thị
   String get reservationTimeDisplay {
     if (reservationTime == null) return '';
-    final hour = reservationTime!.hour.toString().padLeft(2, '0');
-    final minute = reservationTime!.minute.toString().padLeft(2, '0');
+    // Convert UTC to Vietnam timezone (UTC+7)
+    final localTime = reservationTime!.add(const Duration(hours: 7));
+    final hour = localTime.hour.toString().padLeft(2, '0');
+    final minute = localTime.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
   }
 

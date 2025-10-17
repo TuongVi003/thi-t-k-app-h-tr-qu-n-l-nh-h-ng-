@@ -216,7 +216,7 @@ class TakeawayOrderCreateSerializer(ModelSerializer):
         from django.utils import timezone
         
         mon_an_list = validated_data.pop('mon_an_list')
-        print('Thời gian khách lấy', validated_data.get('thoi_gian_khach_lay'))
+
         # Tạo order takeaway
         order = Order.objects.create(
             khach_hang=self.context['request'].user,
@@ -245,6 +245,77 @@ class OrderStatusUpdateSerializer(serializers.Serializer):
     thoi_gian_lay = serializers.IntegerField(required=False)
     ghi_chu = serializers.CharField(required=False, allow_blank=True)
 
+
+class StaffTakeawayOrderSerializer(ModelSerializer):
+    """Serializer dành cho nhân viên tạo đơn mang về cho khách tại bàn"""
+    id = serializers.IntegerField(read_only=True)
+    mon_an_list = serializers.ListField(write_only=True)
+    khach_ho_ten = serializers.CharField(write_only=True, max_length=100, required=False)
+    khach_so_dien_thoai = serializers.CharField(write_only=True, max_length=15, required=False)
+    khach_hang_id = serializers.IntegerField(write_only=True, required=False)
+
+    class Meta:
+        model = Order
+        fields = ['id', 'ghi_chu', 'mon_an_list', 'thoi_gian_khach_lay', 
+                  'khach_ho_ten', 'khach_so_dien_thoai', 'khach_hang_id']
+    
+    def create(self, validated_data):
+        from django.utils import timezone
+        
+        mon_an_list = validated_data.pop('mon_an_list')
+        khach_ho_ten = validated_data.pop('khach_ho_ten', None)
+        khach_so_dien_thoai = validated_data.pop('khach_so_dien_thoai', None)
+        khach_hang_id = validated_data.pop('khach_hang_id', None)
+        
+        # Xác định khách hàng
+        khach_hang = None
+        khach_vang_lai = None
+        
+        if khach_hang_id:
+            # Khách hàng đã có tài khoản
+            try:
+                khach_hang = NguoiDung.objects.get(id=khach_hang_id, loai_nguoi_dung='khach_hang')
+            except NguoiDung.DoesNotExist:
+                raise serializers.ValidationError({'khach_hang_id': 'Khách hàng không tồn tại'})
+        elif khach_ho_ten and khach_so_dien_thoai:
+            # Khách vãng lai
+            khach_vang_lai, created = KhachVangLai.objects.get_or_create(
+                so_dien_thoai=khach_so_dien_thoai,
+                defaults={'ho_ten': khach_ho_ten}
+            )
+            if not created and khach_vang_lai.ho_ten != khach_ho_ten:
+                khach_vang_lai.ho_ten = khach_ho_ten
+                khach_vang_lai.save()
+        else:
+            raise serializers.ValidationError({
+                'non_field_errors': 'Vui lòng cung cấp thông tin khách hàng (khach_hang_id hoặc khach_ho_ten + khach_so_dien_thoai)'
+            })
+        
+        # Tạo order takeaway
+        order = Order.objects.create(
+            khach_hang=khach_hang,
+            khach_vang_lai=khach_vang_lai,
+            nhan_vien=self.context['request'].user,
+            loai_order='takeaway',
+            trang_thai='pending',
+            order_time=timezone.now(),
+            **validated_data
+        )
+        
+        # Tạo chi tiết order
+        for item in mon_an_list:
+            try:
+                mon_an = MonAn.objects.get(id=item['mon_an_id'])
+                ChiTietOrder.objects.create(
+                    order=order,
+                    mon_an=mon_an,
+                    so_luong=item['so_luong'],
+                    gia=mon_an.gia
+                )
+            except MonAn.DoesNotExist:
+                raise serializers.ValidationError({'mon_an_list': f'Món ăn ID {item["mon_an_id"]} không tồn tại'})
+        
+        return order
 
 
 class DanhMucSerializer(ModelSerializer):

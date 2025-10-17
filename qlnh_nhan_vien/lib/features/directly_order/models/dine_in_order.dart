@@ -63,13 +63,21 @@ class DineInOrder {
           .toList();
     }
 
+    // Xử lý nhân viên: nếu có nhan_vien_detail thì lấy từ đó, không thì lấy từ khach_hang_detail
+    String nhanVienHoTen = '';
+    if (json['nhan_vien_detail'] != null) {
+      nhanVienHoTen = json['nhan_vien_detail']['ho_ten'] ?? '';
+    } else if (json['khach_hang_detail'] != null) {
+      nhanVienHoTen = json['khach_hang_detail']['ho_ten'] ?? '';
+    }
+
     return DineInOrder(
       id: json['id'],
       banAnId: json['ban_an'],
-      banAnSoBan: json['ban_an_detail']?['so_ban']?.toString(),
+      banAnSoBan: json['ban_an']?.toString() ?? 'N/A',
       khachHangId: json['khach_hang'],
       nhanVienId: json['nhan_vien'],
-      nhanVienHoTen: json['nhan_vien_detail']?['ho_ten'] ?? '',
+      nhanVienHoTen: nhanVienHoTen,
       orderTime: parseDateTime(json['order_time']) ?? DateTime.now(),
       loaiOrder: json['loai_order'] ?? 'dine_in',
       trangThai: json['trang_thai'] ?? 'pending',

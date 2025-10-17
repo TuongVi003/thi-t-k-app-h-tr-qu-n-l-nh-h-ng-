@@ -68,7 +68,7 @@ def get_table_status(obj):
     from django.utils import timezone
 
     today = timezone.now().date()
-
+    print(f"Checking status for table {obj.so_ban} on {today}") 
 
     # Check active reservations in DonHang
     active_reservations_donhang = DonHang.objects.filter(

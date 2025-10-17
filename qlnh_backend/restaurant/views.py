@@ -387,6 +387,52 @@ class TakeawayOrderView(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(order)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'], url_path='staff-create-order')
+    def staff_create_order(self, request):
+        """Nhân viên tạo đơn mang về cho khách (tại bàn hoặc vãng lai)"""
+        # Check if user is employee
+        if request.user.loai_nguoi_dung != 'nhan_vien':
+            return Response({'error': 'Chỉ nhân viên mới được tạo đơn'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Check if employee has checked in
+        if not request.user.dang_lam_viec:
+            return Response({'error': 'Bạn chưa vào ca làm việc'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        from restaurant.serializer import StaffTakeawayOrderSerializer
+        serializer = StaffTakeawayOrderSerializer(data=request.data, context={'request': request})
+        
+        if serializer.is_valid():
+            order = serializer.save()
+            
+            # Gửi thông báo cho khách hàng (nếu có tài khoản)
+            if order.khach_hang:
+                send_to_user(
+                    order.khach_hang,
+                    "Đơn mang về mới",
+                    f"Nhân viên {request.user.ho_ten} đã tạo đơn mang về #{order.id} cho bạn",
+                    data={'order_id': str(order.id), 'type': 'takeaway_order'}
+                )
+            
+            # Gửi thông báo cho bếp
+            chefs = NguoiDung.objects.filter(
+                loai_nguoi_dung='nhan_vien',
+                chuc_vu='chef',
+                dang_lam_viec=True
+            )
+            for chef in chefs:
+                send_to_user(
+                    chef,
+                    "Đơn mang về mới",
+                    f"Đơn mang về #{order.id} vừa được tạo bởi {request.user.ho_ten}",
+                    data={'order_id': str(order.id), 'type': 'new_takeaway_order'}
+                )
+            
+            # Return with full order details
+            response_serializer = OrderSerializer(order)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class DineInOrderView(viewsets.ModelViewSet):
@@ -448,6 +494,83 @@ class DineInOrderView(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(order)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['post'], url_path='add-items')
+    def add_items(self, request, pk=None):
+        """Nhân viên thêm món vào đơn order dine-in đã tồn tại"""
+        try:
+            order = self.get_object()
+        except Order.DoesNotExist:
+            return Response({'error': 'Đơn hàng không tồn tại'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if request.user.loai_nguoi_dung != 'nhan_vien':
+            return Response({'error': 'Chỉ nhân viên mới được thêm món'}, status=status.HTTP_403_FORBIDDEN)
+        
+        if not request.user.dang_lam_viec:
+            return Response({'error': 'Bạn chưa vào ca làm việc'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Kiểm tra trạng thái đơn - chỉ cho phép thêm món khi đơn chưa hoàn thành hoặc bị hủy
+        if order.trang_thai in ['completed', 'canceled']:
+            return Response({'error': 'Không thể thêm món vào đơn đã hoàn thành hoặc đã hủy'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        mon_an_list = request.data.get('mon_an_list', [])
+        if not mon_an_list:
+            return Response({'error': 'Vui lòng chọn món cần thêm'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Thêm các món mới vào chi tiết order
+        added_items = []
+        for item in mon_an_list:
+            try:
+                mon_an = MonAn.objects.get(id=item['mon_an_id'])
+                so_luong = item.get('so_luong', 1)
+                
+                # Kiểm tra xem món đã có trong order chưa
+                existing_item = ChiTietOrder.objects.filter(order=order, mon_an=mon_an).first()
+                if existing_item:
+                    # Nếu đã có, tăng số lượng
+                    existing_item.so_luong += so_luong
+                    existing_item.save()
+                    added_items.append({
+                        'mon_an': mon_an.ten_mon,
+                        'so_luong_cu': existing_item.so_luong - so_luong,
+                        'so_luong_moi': existing_item.so_luong,
+                        'action': 'updated'
+                    })
+                else:
+                    # Nếu chưa có, tạo mới
+                    ChiTietOrder.objects.create(
+                        order=order,
+                        mon_an=mon_an,
+                        so_luong=so_luong,
+                        gia=mon_an.gia
+                    )
+                    added_items.append({
+                        'mon_an': mon_an.ten_mon,
+                        'so_luong': so_luong,
+                        'action': 'added'
+                    })
+            except MonAn.DoesNotExist:
+                return Response({'error': f'Món ăn ID {item["mon_an_id"]} không tồn tại'}, status=status.HTTP_404_NOT_FOUND)
+            except KeyError:
+                return Response({'error': 'Thiếu trường mon_an_id trong danh sách món'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Gửi thông báo cho bếp nếu đơn đang được xử lý
+        if order.trang_thai in ['confirmed', 'cooking']:
+            chefs = NguoiDung.objects.filter(loai_nguoi_dung='nhan_vien', chuc_vu='chef', dang_lam_viec=True)
+            for chef in chefs:
+                send_to_user(
+                    chef,
+                    f"Đơn #{order.id} - Bàn {order.ban_an.so_ban} có món mới",
+                    f"Khách đã gọi thêm {len(added_items)} món",
+                    data={'order_id': str(order.id), 'type': 'order_updated'}
+                )
+        
+        serializer = self.get_serializer(order)
+        return Response({
+            'message': f'Đã thêm {len(added_items)} món vào đơn hàng',
+            'added_items': added_items,
+            'order': serializer.data
+        }, status=status.HTTP_200_OK)
     
     @action(detail=True, methods=['patch'], url_path='confirm-time')
     def confirm_time(self, request, pk=None):

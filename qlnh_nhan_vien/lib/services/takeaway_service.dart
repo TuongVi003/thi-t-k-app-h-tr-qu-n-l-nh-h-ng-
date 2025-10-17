@@ -221,4 +221,77 @@ class TakeawayService {
       throw Exception('Error checking out: $e');
     }
   }
+
+  /// Nhân viên tạo đơn mang về cho khách
+  static Future<TakeawayOrder> staffCreateOrder({
+    int? khachHangId,
+    String? khachHoTen,
+    String? khachSoDienThoai,
+    required List<Map<String, dynamic>> monAnList,
+    String? ghiChu,
+    DateTime? thoiGianKhachLay,
+  }) async {
+    try {
+      final token = await AuthService.getValidToken();
+      
+      if (token == null) {
+        throw Exception('Không có token hợp lệ. Vui lòng đăng nhập lại.');
+      }
+
+      // Validate input
+      if (khachHangId == null && (khachHoTen == null || khachSoDienThoai == null)) {
+        throw Exception('Vui lòng cung cấp thông tin khách hàng');
+      }
+
+      final Map<String, dynamic> body = {
+        'mon_an_list': monAnList,
+      };
+
+      if (khachHangId != null) {
+        body['khach_hang_id'] = khachHangId;
+      } else {
+        body['khach_ho_ten'] = khachHoTen;
+        body['khach_so_dien_thoai'] = khachSoDienThoai;
+      }
+
+      if (ghiChu != null && ghiChu.isNotEmpty) {
+        body['ghi_chu'] = ghiChu;
+      }
+
+      if (thoiGianKhachLay != null) {
+        body['thoi_gian_khach_lay'] = thoiGianKhachLay.toIso8601String();
+      }
+
+      print('📦 Creating staff takeaway order: $body');
+
+      final response = await http.post(
+        Uri.parse(ApiEndpoints.staffCreateTakeaway),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token.authorizationHeader,
+        },
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: timeout));
+
+      print('📡 Response status: ${response.statusCode}');
+      print('📡 Response body: ${response.body}');
+
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return TakeawayOrder.fromJson(data);
+      } else {
+        final errorData = json.decode(response.body);
+        if (errorData['non_field_errors'] != null) {
+          throw Exception(errorData['non_field_errors'][0]);
+        }
+        if (errorData['error'] != null) {
+          throw Exception(errorData['error']);
+        }
+        throw Exception('Failed to create order: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Error creating staff takeaway order: $e');
+      throw Exception('Lỗi tạo đơn: $e');
+    }
+  }
 }

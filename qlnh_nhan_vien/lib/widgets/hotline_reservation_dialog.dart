@@ -50,10 +50,16 @@ class _HotlineReservationDialogState extends State<HotlineReservationDialog> {
         _availableTables = tables.where((t) => t.status == models.TableStatus.available).toList();
         // If a table was preselected, find the matching one from loaded tables by ID
         if (widget.preselectedTable != null) {
-          _selectedTable = _availableTables.firstWhere(
-            (t) => t.id == widget.preselectedTable!.id,
-            orElse: () => widget.preselectedTable!,
-          );
+          try {
+            _selectedTable = _availableTables.firstWhere(
+              (t) => t.id == widget.preselectedTable!.id,
+            );
+          } catch (e) {
+            // If preselected table not found in available list, don't set it
+            // This prevents the DropdownButton error
+            print('⚠️ Preselected table ${widget.preselectedTable!.id} not found in available tables');
+            _selectedTable = null;
+          }
         }
         _isLoadingTables = false;
       });

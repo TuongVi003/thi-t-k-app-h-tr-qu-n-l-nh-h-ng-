@@ -399,14 +399,38 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              'Khách hàng: ${booking.khachHang.hoTen}',
-              style: const TextStyle(fontSize: 14),
+            Row(
+              children: [
+                Text(
+                  'Khách hàng: ${booking.khachHang.hoTen}',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+                if (booking.khachVangLai != null) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.withOpacity(0.1),
+                      border: Border.all(color: Colors.purple),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'Vãng lai',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.purple,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
-            Text(
-              'SĐT: ${booking.khachHang.soDienThoai}',
-              style: const TextStyle(fontSize: 14),
-            ),
+            if (booking.khachHang.soDienThoai.isNotEmpty)
+              Text(
+                'SĐT: ${booking.khachHang.soDienThoai}',
+                style: const TextStyle(fontSize: 14),
+              ),
             Text(
               'Sức chứa: ${booking.banAn?.sucChua} người',
               style: const TextStyle(fontSize: 14),
@@ -445,17 +469,16 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> {
                 ],
               ],
             ),
-            Text(
-              'Ngày đặt: ${_formatDateTime(booking.ngayDat)}',
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
+            Row(
+              children: [
+                const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                const SizedBox(width: 4),
+                Text(
+                  'Ngày đặt: ${_formatDateTime(booking.ngayDat)}',
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+              ],
             ),
-            if (booking.khachVangLai != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Khách vãng lai: ${booking.khachVangLai}',
-                style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
-              ),
-            ],
             // Hiển thị thông tin current_customer nếu có
             if (booking.banAn?.currentCustomer != null) ...[
               const SizedBox(height: 8),

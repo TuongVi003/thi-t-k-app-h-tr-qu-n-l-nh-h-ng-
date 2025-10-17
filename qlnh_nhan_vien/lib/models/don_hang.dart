@@ -71,9 +71,36 @@ class DonHang {
   });
 
   factory DonHang.fromJson(Map<String, dynamic> json) {
+    // Xử lý khách hàng: nếu null thì tạo User giả từ thông tin khách vãng lai
+    User customer;
+    if (json['khach_hang'] != null) {
+      customer = User.fromJson(json['khach_hang']);
+    } else {
+      // Tạo User giả từ current_customer hoặc khách vãng lai
+      String name = 'Khách vãng lai';
+      String phone = '';
+      
+      if (json['ban_an']?['current_customer'] != null) {
+        name = json['ban_an']['current_customer']['name'] ?? 'Khách vãng lai';
+        phone = json['ban_an']['current_customer']['phone'] ?? '';
+      }
+      
+      customer = User(
+        id: 0,
+        username: 'guest_${json['id']}',
+        hoTen: name,
+        soDienThoai: phone,
+        loaiNguoiDung: 'khach_vang_lai',
+        chucVu: 'customer',
+        isActive: true,
+        dateJoined: DateTime.now(),
+        dangLamViec: false,
+      );
+    }
+    
     return DonHang(
       id: json['id'],
-      khachHang: User.fromJson(json['khach_hang']),
+      khachHang: customer,
       banAn: json['ban_an'] != null ? BanAn.fromJson(json['ban_an']) : null,
       trangThai: DonHangStatus.fromApiValue(json['trang_thai']),
       ngayDat: DateTime.parse(json['ngay_dat']),
