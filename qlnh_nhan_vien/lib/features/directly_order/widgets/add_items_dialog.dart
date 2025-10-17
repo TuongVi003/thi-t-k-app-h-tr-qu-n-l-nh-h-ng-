@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/dine_in_order.dart';
 import '../services/dine_in_order_service.dart';
+import '../../../services/menu_service.dart';
+import '../../../models/mon_an.dart';
 
 class AddItemsDialog extends StatefulWidget {
   final int orderId;
@@ -20,16 +22,34 @@ class _AddItemsDialogState extends State<AddItemsDialog> {
   final DineInOrderService _service = DineInOrderService();
   final List<OrderItemInput> _items = [];
   bool _isSubmitting = false;
+  bool _isLoadingMenu = true;
 
-  // Danh sách món ăn mẫu - trong thực tế nên lấy từ API
-  final List<MenuItemSimple> _menuItems = [
-    MenuItemSimple(id: 1, name: 'Gà quay', price: 170000),
-    MenuItemSimple(id: 2, name: 'Gà Hầm Năng', price: 150),
-    MenuItemSimple(id: 3, name: 'Vịt quay Bắc Kinh', price: 300),
-    MenuItemSimple(id: 6, name: 'Bánh kem dâu tây', price: 150),
-    MenuItemSimple(id: 13, name: 'Thịt bò xào rau cần', price: 200),
-    MenuItemSimple(id: 14, name: 'Chả ram', price: 120),
-  ];
+  // Danh sách món ăn từ API
+  List<MonAn> _menuItems = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMenu();
+  }
+
+  Future<void> _loadMenu() async {
+    try {
+      final menuService = MenuService();
+      final items = await menuService.getMenuItems();
+      setState(() {
+        _menuItems = items.where((item) => item.available).toList();
+        _isLoadingMenu = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingMenu = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi tải menu: $e')),
+        );
+      }
+    }
+  }
 
   void _addItem() {
     setState(() {
@@ -106,9 +126,43 @@ class _AddItemsDialogState extends State<AddItemsDialog> {
           maxHeight: MediaQuery.of(context).size.height * 0.8,
           maxWidth: 500,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        child: _isLoadingMenu
+            ? const Padding(
+                padding: EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Đang tải menu...'),
+                  ],
+                ),
+              )
+            : _menuItems.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.restaurant_menu,
+                            size: 64, color: Colors.grey.shade300),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Không có món ăn nào',
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _loadMenu,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Thử lại'),
+                        ),
+                      ],
+                    ),
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
             // Header
             Container(
               padding: const EdgeInsets.all(16),
@@ -227,10 +281,13 @@ class _AddItemsDialogState extends State<AddItemsDialog> {
                                         horizontal: 12, vertical: 8),
                                   ),
                                   items: _menuItems.map((menu) {
+                                    String priceText = menu.gia >= 1000 
+                                        ? '${(menu.gia / 1000).toStringAsFixed(0)}k'
+                                        : '${menu.gia.toStringAsFixed(0)}';
                                     return DropdownMenuItem(
                                       value: menu.id,
                                       child: Text(
-                                        '${menu.name} - ${menu.price.toStringAsFixed(0)} VND',
+                                        '${menu.tenMon} - $priceText VND',
                                         style: const TextStyle(fontSize: 14),
                                       ),
                                     );
@@ -286,7 +343,12 @@ class _AddItemsDialogState extends State<AddItemsDialog> {
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
-                                        '${(selectedMenu.price * item.soLuong).toStringAsFixed(0)} VND',
+                                        () {
+                                          final total = selectedMenu.gia * item.soLuong;
+                                          return total >= 1000 
+                                              ? '${(total / 1000).toStringAsFixed(0)}k'
+                                              : '${total.toStringAsFixed(0)}';
+                                        }(),
                                         style: TextStyle(
                                           fontSize: 13,
                                           fontWeight: FontWeight.bold,
@@ -331,7 +393,12 @@ class _AddItemsDialogState extends State<AddItemsDialog> {
                             ),
                           ),
                           Text(
-                            '${_calculateTotal().toStringAsFixed(0)} VND',
+                            () {
+                              final total = _calculateTotal();
+                              return total >= 1000 
+                                  ? '${(total / 1000).toStringAsFixed(0)}k VND'
+                                  : '${total.toStringAsFixed(0)} VND';
+                            }(),
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -380,8 +447,8 @@ class _AddItemsDialogState extends State<AddItemsDialog> {
                 ],
               ),
             ),
-          ],
-        ),
+                    ],
+                  ),
       ),
     );
   }
@@ -390,7 +457,7 @@ class _AddItemsDialogState extends State<AddItemsDialog> {
     double total = 0;
     for (var item in _items) {
       final menu = _menuItems.firstWhere((m) => m.id == item.monAnId);
-      total += menu.price * item.soLuong;
+      total += menu.gia * item.soLuong;
     }
     return total;
   }
@@ -401,12 +468,4 @@ class OrderItemInput {
   int soLuong;
 
   OrderItemInput({required this.monAnId, required this.soLuong});
-}
-
-class MenuItemSimple {
-  final int id;
-  final String name;
-  final double price;
-
-  MenuItemSimple({required this.id, required this.name, required this.price});
 }

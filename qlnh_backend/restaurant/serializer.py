@@ -250,6 +250,7 @@ class StaffTakeawayOrderSerializer(ModelSerializer):
     """Serializer dành cho nhân viên tạo đơn mang về cho khách tại bàn"""
     id = serializers.IntegerField(read_only=True)
     mon_an_list = serializers.ListField(write_only=True)
+    ban_an_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     khach_ho_ten = serializers.CharField(write_only=True, max_length=100, required=False)
     khach_so_dien_thoai = serializers.CharField(write_only=True, max_length=15, required=False)
     khach_hang_id = serializers.IntegerField(write_only=True, required=False)
@@ -257,7 +258,7 @@ class StaffTakeawayOrderSerializer(ModelSerializer):
     class Meta:
         model = Order
         fields = ['id', 'ghi_chu', 'mon_an_list', 'thoi_gian_khach_lay', 
-                  'khach_ho_ten', 'khach_so_dien_thoai', 'khach_hang_id']
+                  'ban_an_id', 'khach_ho_ten', 'khach_so_dien_thoai', 'khach_hang_id']
     
     def create(self, validated_data):
         from django.utils import timezone
@@ -266,6 +267,15 @@ class StaffTakeawayOrderSerializer(ModelSerializer):
         khach_ho_ten = validated_data.pop('khach_ho_ten', None)
         khach_so_dien_thoai = validated_data.pop('khach_so_dien_thoai', None)
         khach_hang_id = validated_data.pop('khach_hang_id', None)
+        ban_an_id = validated_data.pop('ban_an_id', None)
+        
+        # Xác định bàn ăn (nếu có)
+        ban_an = None
+        if ban_an_id:
+            try:
+                ban_an = BanAn.objects.get(id=ban_an_id)
+            except BanAn.DoesNotExist:
+                raise serializers.ValidationError({'ban_an_id': 'Bàn ăn không tồn tại'})
         
         # Xác định khách hàng
         khach_hang = None
@@ -295,6 +305,7 @@ class StaffTakeawayOrderSerializer(ModelSerializer):
         order = Order.objects.create(
             khach_hang=khach_hang,
             khach_vang_lai=khach_vang_lai,
+            ban_an=ban_an,  # Lưu thông tin bàn (có thể null)
             nhan_vien=self.context['request'].user,
             loai_order='takeaway',
             trang_thai='pending',

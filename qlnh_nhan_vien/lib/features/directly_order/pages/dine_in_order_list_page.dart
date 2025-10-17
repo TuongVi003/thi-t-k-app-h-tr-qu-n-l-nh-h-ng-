@@ -4,6 +4,7 @@ import '../services/dine_in_order_service.dart';
 import '../widgets/add_items_dialog.dart';
 import 'dine_in_order_detail_page.dart';
 import 'create_dine_in_order_page.dart';
+import '../../../screens/staff_create_takeaway_screen.dart';
 
 class DineInOrderListPage extends StatefulWidget {
   const DineInOrderListPage({Key? key}) : super(key: key);
@@ -148,6 +149,9 @@ class _DineInOrderListPageState extends State<DineInOrderListPage> {
 
     // Kiểm tra xem có thể thêm món không (chỉ pending/confirmed/cooking)
     bool canAddItems = ['pending', 'confirmed', 'cooking'].contains(order.trangThai);
+    
+    // Có thể đặt mang về cho bất kỳ đơn nào trừ đơn đã hủy
+    bool canCreateTakeaway = order.trangThai != 'canceled';
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -329,23 +333,38 @@ class _DineInOrderListPageState extends State<DineInOrderListPage> {
                 ],
               ),
               
-              // Nút thêm món (nếu đơn chưa hoàn thành)
-              if (canAddItems) ...[
+              // Nút thêm món và đặt mang về
+              if (canAddItems || canCreateTakeaway) ...[
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _showAddItemsDialog(order),
-                        icon: const Icon(Icons.add_circle_outline, size: 18),
-                        label: const Text('Thêm món'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.blue.shade700,
-                          side: BorderSide(color: Colors.blue.shade300),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                    if (canAddItems)
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showAddItemsDialog(order),
+                          icon: const Icon(Icons.add_circle_outline, size: 18),
+                          label: const Text('Thêm món'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.blue.shade700,
+                            side: BorderSide(color: Colors.blue.shade300),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                          ),
                         ),
                       ),
-                    ),
+                    if (canAddItems && canCreateTakeaway) const SizedBox(width: 8),
+                    if (canCreateTakeaway)
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _createTakeawayForTable(order),
+                          icon: const Icon(Icons.shopping_bag_outlined, size: 18),
+                          label: const Text('Đặt mang về'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.green.shade700,
+                            side: BorderSide(color: Colors.green.shade300),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ],
@@ -364,6 +383,30 @@ class _DineInOrderListPageState extends State<DineInOrderListPage> {
         onSuccess: _loadOrders,
       ),
     );
+  }
+
+  Future<void> _createTakeawayForTable(DineInOrder order) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => StaffCreateTakeawayScreen(
+          banAnId: order.banAnId,
+          banAnSoBan: order.banAnSoBan,
+        ),
+      ),
+    );
+    
+    if (result == true) {
+      // Có thể reload hoặc hiển thị thông báo
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã tạo đơn mang về thành công'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
   }
 
   Color _getStatusColor(String status) {

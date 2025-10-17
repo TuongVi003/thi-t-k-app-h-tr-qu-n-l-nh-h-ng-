@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
 import '../services/takeaway_service.dart';
+import '../services/menu_service.dart';
+import '../models/mon_an.dart';
 
 class StaffCreateTakeawayScreen extends StatefulWidget {
-  const StaffCreateTakeawayScreen({Key? key}) : super(key: key);
+  final int? banAnId;
+  final String? banAnSoBan;
+  
+  const StaffCreateTakeawayScreen({
+    Key? key, 
+    this.banAnId,
+    this.banAnSoBan,
+  }) : super(key: key);
 
   @override
   State<StaffCreateTakeawayScreen> createState() => _StaffCreateTakeawayScreenState();
@@ -21,16 +30,34 @@ class _StaffCreateTakeawayScreenState extends State<StaffCreateTakeawayScreen> {
   
   final List<OrderItemInput> _items = [];
   bool _isSubmitting = false;
+  bool _isLoadingMenu = true;
 
-  // Mock menu items - trong thực tế nên lấy từ API
-  final List<MenuItemSimple> _menuItems = [
-    MenuItemSimple(id: 1, name: 'Gà quay', price: 170000),
-    MenuItemSimple(id: 2, name: 'Gà Hầm Năng', price: 150000),
-    MenuItemSimple(id: 3, name: 'Vịt quay Bắc Kinh', price: 300000),
-    MenuItemSimple(id: 6, name: 'Bánh kem dâu tây', price: 150000),
-    MenuItemSimple(id: 13, name: 'Thịt bò xào rau cần', price: 200000),
-    MenuItemSimple(id: 14, name: 'Chả ram', price: 120000),
-  ];
+  // Menu items từ API
+  List<MonAn> _menuItems = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMenu();
+  }
+
+  Future<void> _loadMenu() async {
+    try {
+      final menuService = MenuService();
+      final items = await menuService.getMenuItems();
+      setState(() {
+        _menuItems = items.where((item) => item.available).toList();
+        _isLoadingMenu = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingMenu = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi tải menu: $e')),
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -129,6 +156,7 @@ class _StaffCreateTakeawayScreenState extends State<StaffCreateTakeawayScreen> {
         monAnList: monAnList,
         ghiChu: _noteController.text.trim(),
         thoiGianKhachLay: _pickupTime,
+        banAnId: widget.banAnId,
       );
 
       if (mounted) {
@@ -157,7 +185,7 @@ class _StaffCreateTakeawayScreenState extends State<StaffCreateTakeawayScreen> {
     double total = 0;
     for (var item in _items) {
       final menu = _menuItems.firstWhere((m) => m.id == item.monAnId);
-      total += menu.price * item.soLuong;
+      total += menu.gia * item.soLuong;
     }
     return total;
   }
@@ -166,20 +194,61 @@ class _StaffCreateTakeawayScreenState extends State<StaffCreateTakeawayScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tạo đơn mang về'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Tạo đơn mang về'),
+            if (widget.banAnSoBan != null)
+              Text(
+                'Bàn ${widget.banAnSoBan}',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+              ),
+          ],
+        ),
         backgroundColor: const Color(0xFF2E7D32),
         foregroundColor: Colors.white,
       ),
-      body: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+      body: _isLoadingMenu
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Đang tải menu...'),
+                ],
+              ),
+            )
+          : _menuItems.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.restaurant_menu, size: 64, color: Colors.grey.shade300),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Không có món ăn nào',
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: _loadMenu,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Thử lại'),
+                      ),
+                    ],
+                  ),
+                )
+              : Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
                     // Customer type selector
                     Card(
                       child: Padding(
@@ -409,10 +478,13 @@ class _StaffCreateTakeawayScreenState extends State<StaffCreateTakeawayScreen> {
                                               horizontal: 12, vertical: 8),
                                         ),
                                         items: _menuItems.map((menu) {
+                                          String priceText = menu.gia >= 1000 
+                                              ? '${(menu.gia / 1000).toStringAsFixed(0)}k'
+                                              : '${menu.gia.toStringAsFixed(0)}';
                                           return DropdownMenuItem(
                                             value: menu.id,
                                             child: Text(
-                                              '${menu.name} - ${(menu.price / 1000).toStringAsFixed(0)}k',
+                                              '${menu.tenMon} - $priceText',
                                               style: const TextStyle(fontSize: 14),
                                             ),
                                           );
@@ -463,7 +535,12 @@ class _StaffCreateTakeawayScreenState extends State<StaffCreateTakeawayScreen> {
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: Text(
-                                              '${((selectedMenu.price * item.soLuong) / 1000).toStringAsFixed(0)}k',
+                                              () {
+                                                final total = selectedMenu.gia * item.soLuong;
+                                                return total >= 1000 
+                                                    ? '${(total / 1000).toStringAsFixed(0)}k'
+                                                    : '${total.toStringAsFixed(0)}';
+                                              }(),
                                               style: TextStyle(
                                                 fontSize: 13,
                                                 fontWeight: FontWeight.bold,
@@ -534,7 +611,12 @@ class _StaffCreateTakeawayScreenState extends State<StaffCreateTakeawayScreen> {
                           ),
                         ),
                         Text(
-                          '${(_calculateTotal() / 1000).toStringAsFixed(0)}k VND',
+                          () {
+                            final total = _calculateTotal();
+                            return total >= 1000 
+                                ? '${(total / 1000).toStringAsFixed(0)}k VND'
+                                : '${total.toStringAsFixed(0)} VND';
+                          }(),
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -571,9 +653,9 @@ class _StaffCreateTakeawayScreenState extends State<StaffCreateTakeawayScreen> {
                 ],
               ),
             ),
-          ],
-        ),
-      ),
+                    ],
+                  ),
+                ),
     );
   }
 }
@@ -583,12 +665,4 @@ class OrderItemInput {
   int soLuong;
 
   OrderItemInput({required this.monAnId, required this.soLuong});
-}
-
-class MenuItemSimple {
-  final int id;
-  final String name;
-  final double price;
-
-  MenuItemSimple({required this.id, required this.name, required this.price});
 }

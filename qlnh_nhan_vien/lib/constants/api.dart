@@ -29,6 +29,9 @@ class ApiEndpoints {
   // Dine-in orders
   static String addItemsToDineInOrder(int orderId) => '$baseUrl/api/dine-in/$orderId/add-items/';
 
+  // Menu
+  static const String menu = '$baseUrl/api/menu/';
+
   // User Management
   static const String checkIn = '$baseUrl/api/users/check-in/';
   static const String checkOut = '$baseUrl/api/users/check-out/';

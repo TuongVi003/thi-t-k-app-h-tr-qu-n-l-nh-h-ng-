@@ -230,6 +230,7 @@ class TakeawayService {
     required List<Map<String, dynamic>> monAnList,
     String? ghiChu,
     DateTime? thoiGianKhachLay,
+    int? banAnId,
   }) async {
     try {
       final token = await AuthService.getValidToken();
@@ -260,6 +261,10 @@ class TakeawayService {
 
       if (thoiGianKhachLay != null) {
         body['thoi_gian_khach_lay'] = thoiGianKhachLay.toIso8601String();
+      }
+
+      if (banAnId != null) {
+        body['ban_an_id'] = banAnId;
       }
 
       print('📦 Creating staff takeaway order: $body');
