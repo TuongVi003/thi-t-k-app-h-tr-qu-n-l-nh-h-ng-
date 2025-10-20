@@ -191,6 +191,7 @@ class UserTableView(viewsets.ViewSet, generics.ListAPIView):
 
     def get_queryset(self):
         khu_vuc = self.request.query_params.get('khu_vuc')
+        # khu_vuc = 'inside'
         if khu_vuc:
             return self.queryset.filter(khu_vuc=khu_vuc)
         return self.queryset

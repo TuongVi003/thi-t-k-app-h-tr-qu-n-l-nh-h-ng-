@@ -424,41 +424,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
                                     ),
                                   ),
                                 ),
-                              ] else if (table.isUnderMaintenance) ...[
-                                const SizedBox(height: 2),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.warning,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Text(
-                                    'Bảo trì',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: AppColors.textWhite,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ] else if (!table.isAvailable) ...[
-                                const SizedBox(height: 2),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.textSecondary,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Text(
-                                    'Không khả dụng',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: AppColors.textWhite,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                              ] 
                             ],
                           ),
                         ),

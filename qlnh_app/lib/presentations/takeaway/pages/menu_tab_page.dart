@@ -102,47 +102,47 @@ class _MenuTabState extends State<MenuTab> {
           const TakeawayStatusWidget(),
 
           // Info banner (no separate cart, use main cart from HomeScreen)
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 16),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.infoBackground,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppColors.infoLight,
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.takeout_dining,
-                  color: AppColors.info,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Đặt món mang về',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.info,
-                        ),
-                      ),
-                      Text(
-                        'Thêm món vào giỏ hàng và thanh toán',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // Container(
+          //   margin: const EdgeInsets.symmetric(vertical: 16),
+          //   padding: const EdgeInsets.all(16),
+          //   decoration: BoxDecoration(
+          //     color: AppColors.infoBackground,
+          //     borderRadius: BorderRadius.circular(12),
+          //     border: Border.all(
+          //       color: AppColors.infoLight,
+          //     ),
+          //   ),
+          //   child: Row(
+          //     children: [
+          //       const Icon(
+          //         Icons.takeout_dining,
+          //         color: AppColors.info,
+          //       ),
+          //       const SizedBox(width: 12),
+          //       Expanded(
+          //         child: Column(
+          //           crossAxisAlignment: CrossAxisAlignment.start,
+          //           children: [
+          //             const Text(
+          //               'Đặt món mang về',
+          //               style: TextStyle(
+          //                 fontWeight: FontWeight.bold,
+          //                 color: AppColors.info,
+          //               ),
+          //             ),
+          //             Text(
+          //               'Thêm món vào giỏ hàng và thanh toán',
+          //               style: TextStyle(
+          //                 fontSize: 12,
+          //                 color: AppColors.textSecondary,
+          //               ),
+          //             ),
+          //           ],
+          //         ),
+          //       ),
+          //     ],
+          //   ),
+          // ),
 
           // Category filter
           SizedBox(

@@ -114,13 +114,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   }
                 },
                 itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                  const PopupMenuItem<String>(
-                    value: 'reservation',
-                    child: ListTile(
-                      leading: Icon(Icons.event_seat),
-                      title: Text('Đặt bàn'),
-                    ),
-                  ),
+                  // const PopupMenuItem<String>(
+                  //   value: 'reservation',
+                  //   child: ListTile(
+                  //     leading: Icon(Icons.event_seat),
+                  //     title: Text('Đặt bàn'),
+                  //   ),
+                  // ),
 
                   const PopupMenuItem<String>(
                     value: 'profile',

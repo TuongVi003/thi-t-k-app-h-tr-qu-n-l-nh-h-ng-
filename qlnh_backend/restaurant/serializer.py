@@ -207,10 +207,16 @@ class OrderSerializer(ModelSerializer):
 class TakeawayOrderCreateSerializer(ModelSerializer):
     id = serializers.IntegerField(read_only=True)
     mon_an_list = serializers.ListField(write_only=True)
+    chi_tiet_order = ChiTietOrderSerializer(many=True, read_only=True, source='chitietorder_set')
+    tong_tien = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
-        fields = ['id', 'ghi_chu', 'mon_an_list', 'thoi_gian_khach_lay']
+        fields = ['id', 'ghi_chu', 'mon_an_list', 'thoi_gian_khach_lay', 
+                  'order_time', 'trang_thai', 'loai_order', 'chi_tiet_order', 'tong_tien']
+    
+    def get_tong_tien(self, obj):
+        return sum([item.so_luong * item.gia for item in obj.chitietorder_set.all()])
     
     def create(self, validated_data):
         from django.utils import timezone
