@@ -1,8 +1,8 @@
 
 
 class ApiEndpoints {
-  static const String baseUrl = 'https://d9p0zhfk-8000.asse.devtunnels.ms';
-  //  static const String baseUrl = 'https://p61nc0b1-8000.asse.devtunnels.ms';
+  //static const String baseUrl = 'https://d9p0zhfk-8000.asse.devtunnels.ms';
+    static const String baseUrl = 'https://p61nc0b1-8000.asse.devtunnels.ms';
 
   static const String login = '$baseUrl/o/token/';
   static const String register = '$baseUrl/api/users/';

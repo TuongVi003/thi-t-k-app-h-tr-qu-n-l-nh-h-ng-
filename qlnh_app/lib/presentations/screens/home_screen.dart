@@ -88,7 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Scaffold(
           appBar: AppBar(
             title: const Text(
-              'Nhà Hàng Tường Vi',
+              'Nhà Hàng Moon',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: AppColors.textWhite,
