@@ -259,6 +259,7 @@ class _CartTabState extends State<CartTab> {
         // Clear cart
         widget.onClearCart?.call();
 
+        print('Đặt hàng mang về thành công: ${order.toFullJson()}');
         // Navigate to success screen
         Navigator.push(
           context,

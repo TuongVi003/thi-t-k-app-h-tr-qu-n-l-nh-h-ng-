@@ -187,7 +187,7 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
           children: [
             _buildStatusCard(),
             const SizedBox(height: 16),
-            _buildStatusTimeline(),
+            // _buildStatusTimeline(),
             const SizedBox(height: 16),
             _buildOrderInfo(),
             const SizedBox(height: 16),

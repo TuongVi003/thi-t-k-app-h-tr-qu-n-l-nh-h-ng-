@@ -57,6 +57,20 @@ class TakeawayOrder {
     };
   }
 
+  Map<String, dynamic> toFullJson() {
+    return {
+      'id': id,
+      'thoi_gian_khach_lay': thoiGianKhachLay?.toIso8601String(),
+      'order_time': orderTime?.toIso8601String(),
+      'trang_thai': trangThai,
+      'thoi_gian_lay': thoiGianLay,
+      'thoi_gian_san_sang': thoiGianSanSang?.toIso8601String(),
+      'loai_order': loaiOrder,
+      'chi_tiet_order': items.map((item) => item.toJson()).toList(),
+      'tong_tien': tongTien,
+    };
+  }
+
   String get trangThaiDisplay {
     switch (trangThai) {
       case 'pending':
@@ -113,6 +127,9 @@ class TakeawayOrderItem {
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
+      'ten_mon': tenMon,
+      'hinh_anh': hinhAnh,
       'mon_an_id': monAnId,
       'so_luong': soLuong,
     };

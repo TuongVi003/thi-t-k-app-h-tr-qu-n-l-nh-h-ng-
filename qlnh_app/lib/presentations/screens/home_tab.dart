@@ -564,10 +564,10 @@ class _HomeTabState extends State<HomeTab> {
             const SizedBox(height: 20),
 
             // Opening Hours
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _buildOpeningHours(),
-            ),
+            // Padding(
+            //   padding: const EdgeInsets.symmetric(horizontal: 20),
+            //   child: _buildOpeningHours(),
+            // ),
 
             // Story Section
             if (_aboutUsMap.containsKey('cau_chuyen_thuong_hieu'))
@@ -657,6 +657,12 @@ class _HomeTabState extends State<HomeTab> {
     final intro = _getContent('gioi_thieu_chung');
     if (intro.isEmpty) return const SizedBox();
 
+    final openingHoursData = _aboutUsMap['gio_mo_cua'];
+    if (openingHoursData == null) return const SizedBox();
+
+    final jsonData = openingHoursData.parseJsonContent();
+    if (jsonData == null) return const SizedBox();
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(24),
@@ -742,6 +748,7 @@ class _HomeTabState extends State<HomeTab> {
             ],
           ),
           const SizedBox(height: 20),
+          // _buildOpeningHours()
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -762,6 +769,22 @@ class _HomeTabState extends State<HomeTab> {
               ),
             ),
           ),
+          const SizedBox(height: 24),
+          _buildModernOpeningHourRow(
+                  Icons.calendar_today,
+                  'Thứ 2 - Thứ 6',
+                  jsonData['thu2_thu6'] ?? '',
+                  AppColors.primary,
+                ),
+                const SizedBox(height: 16),
+                const Divider(height: 1),
+                const SizedBox(height: 16),
+                _buildModernOpeningHourRow(
+                  Icons.weekend,
+                  'Thứ 7 - Chủ nhật',
+                  jsonData['thu7_cn'] ?? '',
+                  AppColors.accent,
+                ),
         ],
       ),
     );

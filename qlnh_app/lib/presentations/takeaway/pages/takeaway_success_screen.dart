@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../models/takeaway_order.dart';
 import '../../../constants/app_colors.dart';
-import 'takeaway_order_tracking_screen.dart';
+import 'package:qlnh_app/constants/utils.dart';
 
 class TakeawaySuccessScreen extends StatelessWidget {
   final TakeawayOrder order;
@@ -34,7 +34,7 @@ class TakeawaySuccessScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     const SizedBox(height: 32),
-                    
+
                     // Success icon
                     Container(
                       width: 100,
@@ -95,7 +95,8 @@ class TakeawaySuccessScreen extends StatelessWidget {
                                   ),
                                 ),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: AppColors.orderPending,
                                     borderRadius: BorderRadius.circular(12),
@@ -128,7 +129,21 @@ class TakeawaySuccessScreen extends StatelessWidget {
                                 children: [
                                   const Icon(Icons.access_time, size: 16),
                                   const SizedBox(width: 8),
-                                  Text('Thời gian đặt: ${_formatDateTime(order.orderTime!)}'),
+                                  Text(
+                                      'Thời gian đặt: ${_formatDateTime(order.orderTime!.add(Duration(hours: 7)))}'),
+                                      // cộng 7 giờ để hiển thị đúng giờ Việt Nam
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                            ],
+
+                            if (order.thoiGianKhachLay != null) ...[
+                              Row(
+                                children: [
+                                  const Icon(Icons.access_time, size: 16),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                      'Thời gian lấy: ${_formatDateTime(order.thoiGianKhachLay!)}'),
                                 ],
                               ),
                               const SizedBox(height: 8),
@@ -138,11 +153,13 @@ class TakeawaySuccessScreen extends StatelessWidget {
                               children: [
                                 const Icon(Icons.restaurant, size: 16),
                                 const SizedBox(width: 8),
-                                Text('Loại: ${order.loaiOrder == 'takeaway' ? 'Mang về' : 'Ăn tại chỗ'}'),
+                                Text(
+                                    'Loại: ${order.loaiOrder == 'takeaway' ? 'Mang về' : 'Ăn tại chỗ'}'),
                               ],
                             ),
 
-                            if (order.ghiChu != null && order.ghiChu!.isNotEmpty) ...[
+                            if (order.ghiChu != null &&
+                                order.ghiChu!.isNotEmpty) ...[
                               const SizedBox(height: 8),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,34 +174,80 @@ class TakeawaySuccessScreen extends StatelessWidget {
                             ],
 
                             const SizedBox(height: 16),
-                            
+
                             // Order items
-                            const Text(
+                            Text(
                               'Món đã đặt:',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
+
                             const SizedBox(height: 8),
                             ...order.items.map((item) => Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text('${item.soLuong}x ${item.tenMon}'),
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      if (item.hinhAnh != null && item.hinhAnh!.isNotEmpty)
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(4),
+                                          child: Image.network(
+                                            Utils.imageUrl(item.hinhAnh!),
+                                            width: 40,
+                                            height: 40,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) => 
+                                              Container(
+                                                width: 40,
+                                                height: 40,
+                                                color: AppColors.primaryVeryLight,
+                                                child: const Icon(
+                                                  Icons.restaurant,
+                                                  size: 20,
+                                                  color: AppColors.primary,
+                                                ),
+                                              ),
+                                          ),
+                                        )
+                                      else
+                                        Container(
+                                          width: 40,
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primaryVeryLight,
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: const Icon(
+                                            Icons.restaurant,
+                                            size: 20,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          '${item.soLuong}x ${item.tenMon}',
+                                          style: const TextStyle(fontSize: 14),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        '${item.thanhTien.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}đ',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  Text(
-                                    '${item.thanhTien.toStringAsFixed(0)}đ',
-                                    style: const TextStyle(fontWeight: FontWeight.w500),
-                                  ),
-                                ],
-                              ),
-                            )),
+                                )),
 
                             const Divider(),
-                            
+
                             // Total
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -253,33 +316,35 @@ class TakeawaySuccessScreen extends StatelessWidget {
             // Buttons
             Column(
               children: [
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: order.id != null
-                        ? () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => TakeawayOrderTrackingScreen(
-                                  orderId: order.id!,
-                                  initialOrder: order,
-                                ),
-                              ),
-                            );
-                          }
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.textWhite,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text(
-                      'Theo dõi đơn hàng',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
+                // SizedBox(
+                //   width: double.infinity,
+                //   child: ElevatedButton(
+                //     onPressed: order.id != null
+                //         ? () {
+                //             Navigator.push(
+                //               context,
+                //               MaterialPageRoute(
+                //                 builder: (context) =>
+                //                     TakeawayOrderTrackingScreen(
+                //                   orderId: order.id!,
+                //                   initialOrder: order,
+                //                 ),
+                //               ),
+                //             );
+                //           }
+                //         : null,
+                //     style: ElevatedButton.styleFrom(
+                //       backgroundColor: AppColors.primary,
+                //       foregroundColor: AppColors.textWhite,
+                //       padding: const EdgeInsets.symmetric(vertical: 16),
+                //     ),
+                //     child: const Text(
+                //       'Theo dõi đơn hàng',
+                //       style:
+                //           TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                //     ),
+                //   ),
+                // ),
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
