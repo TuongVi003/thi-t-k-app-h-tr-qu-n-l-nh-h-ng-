@@ -82,10 +82,6 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
     return tables.where((table) => table.status == models.TableStatus.occupied).length;
   }
 
-  int get reservedTablesCount {
-    return tables.where((table) => table.status == models.TableStatus.reserved).length;
-  }
-
   // Thống kê theo khu vực
   int getTablesCountByArea(models.AreaType area) {
     return tables.where((table) => table.area == area).length;
@@ -412,11 +408,11 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
           selectedFilter = selectedFilter == status ? null : status;
         });
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          color: selectedFilter == status ? Colors.white.withOpacity(0.2) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          decoration: BoxDecoration(
+            color: selectedFilter == status ? Colors.white.withOpacity(0.2) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.white.withOpacity(0.3)),
         ),
         child: Column(
