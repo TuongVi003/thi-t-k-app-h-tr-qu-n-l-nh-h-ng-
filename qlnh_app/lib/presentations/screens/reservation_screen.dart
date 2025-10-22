@@ -326,7 +326,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
                       crossAxisCount: 3,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
-                      childAspectRatio: 1.2,
+                      childAspectRatio: 1.5,
                     ),
                     itemCount: _availableTables.length,
                     itemBuilder: (context, index) {
@@ -365,67 +365,69 @@ class _ReservationScreenState extends State<ReservationScreen> {
                               ),
                             ] : null,
                           ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.table_restaurant,
-                                size: 32,
-                                color: isSelected
-                                    ? AppColors.textWhite
-                                    : table.isOccupied
-                                        ? AppColors.error
-                                        : table.isUnderMaintenance
-                                            ? AppColors.warning
-                                            : AppColors.primary,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Bàn ${table.soban}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.table_restaurant,
+                                  size: 20,
                                   color: isSelected
                                       ? AppColors.textWhite
                                       : table.isOccupied
                                           ? AppColors.error
                                           : table.isUnderMaintenance
                                               ? AppColors.warning
-                                              : AppColors.textPrimary,
+                                              : AppColors.primary,
                                 ),
-                              ),
-                              Text(
-                                '${table.sucChua} người',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isSelected
-                                      ? AppColors.textWhite.withOpacity(0.8)
-                                      : table.isOccupied
-                                          ? AppColors.error.withOpacity(0.7)
-                                          : table.isUnderMaintenance
-                                              ? AppColors.warning.withOpacity(0.7)
-                                              : AppColors.textSecondary,
-                                ),
-                              ),
-                              if (table.isOccupied) ...[
-                                const SizedBox(height: 2),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.error,
-                                    borderRadius: BorderRadius.circular(8),
+                                const SizedBox(height: 1),
+                                Text(
+                                  'Bàn ${table.soban}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: isSelected
+                                        ? AppColors.textWhite
+                                        : table.isOccupied
+                                            ? AppColors.error
+                                            : table.isUnderMaintenance
+                                                ? AppColors.warning
+                                                : AppColors.textPrimary,
                                   ),
-                                  child: const Text(
-                                    'Đã đặt',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: AppColors.textWhite,
-                                      fontWeight: FontWeight.bold,
+                                ),
+                                Text(
+                                  '${table.sucChua} người',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    color: isSelected
+                                        ? AppColors.textWhite.withOpacity(0.8)
+                                        : table.isOccupied
+                                            ? AppColors.error.withOpacity(0.7)
+                                            : table.isUnderMaintenance
+                                                ? AppColors.warning.withOpacity(0.7)
+                                                : AppColors.textSecondary,
+                                  ),
+                                ),
+                                if (table.isOccupied) ...[
+                                  const SizedBox(height: 1),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.error,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Text(
+                                      'Đã đặt',
+                                      style: TextStyle(
+                                        fontSize: 8,
+                                        color: AppColors.textWhite,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ] 
-                            ],
+                                ] 
+                              ],
+                            ),
                           ),
                         ),
                       );

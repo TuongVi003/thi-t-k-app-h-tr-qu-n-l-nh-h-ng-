@@ -169,3 +169,14 @@ def get_table_occupancy_info(obj, date=None):
         }
     
     return None
+
+
+def format_donhang_status(trang_thai):
+    status_dict = {
+        'pending': 'Chờ xác nhận',
+        'confirmed': 'Đã xác nhận',
+        'completed': 'Đã hoàn thành',
+        'canceled': 'Đã hủy',
+    }
+    return status_dict.get(trang_thai, 'Không xác định')
+

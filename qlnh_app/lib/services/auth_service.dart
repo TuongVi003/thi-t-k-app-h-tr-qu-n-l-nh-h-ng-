@@ -117,24 +117,42 @@ class AuthService {
   Future<void> registerFcmToken() async {
     try {
       final fcmToken = await FirebaseMessaging.instance.getToken();
-      if (fcmToken == null) return;
-      print('FCM Token1111111111: $_accessToken');
+      if (fcmToken == null) {
+        print('FCM token is null, cannot register');
+        return;
+      }
+      
+      if (_accessToken == null) {
+        print('Access token is null, cannot register FCM token');
+        return;
+      }
+
+      print('Registering FCM token with access token: $_accessToken');
+      print('FCM Token: $fcmToken');
 
       final uri = Uri.parse('${ApiEndpoints.baseUrl}/api/fcm-token/');
       final headers = {
         'Content-Type': 'application/json',
-        if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
+        'Authorization': 'Bearer $_accessToken',
       };
+      
+      final body = jsonEncode({
+        'token': fcmToken,
+      });
+
       final response = await http.post(
         uri,
         headers: headers,
-        body: jsonEncode({'token': fcmToken}),
+        body: body,
       );
 
+      print('FCM token registration response status: ${response.statusCode}');
+      print('FCM token registration response body: ${response.body}');
+
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print('FCM token registered successfully: ${response.body}');
+        print('FCM token registered successfully');
       } else {
-        print('Failed to register FCM token: ${response.statusCode}');
+        print('Failed to register FCM token: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       print('Error registering FCM token: $e');

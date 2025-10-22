@@ -12,7 +12,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view
 import json
-from .utils import send_to_user  # import hàm gửi notification
+from .utils import send_to_user, format_donhang_status  # import hàm gửi notification
 
 from restaurant.serializer import (BanAnForReservationSerializer, UserSerializer, BanAnSerializer, DonHangSerializer, 
                                   OrderSerializer, TakeawayOrderCreateSerializer, 
@@ -137,6 +137,9 @@ class DonHangView(viewsets.ViewSet, generics.ListCreateAPIView):
         
         don_hang.trang_thai = new_status
         don_hang.save()
+
+        # send notification
+        send_to_user(don_hang.khach_hang, "Cập nhật trạng thái đặt bàn", f"Đơn đặt bàn #{don_hang.id} của bạn đã được cập nhật trạng thái thành '{format_donhang_status(new_status)}'.")
         
         serializer = self.get_serializer(don_hang)
         return Response(serializer.data)
