@@ -274,7 +274,9 @@ class Table {
   String get reservationTimeDisplay {
     if (reservationTime == null) return '';
     // Convert UTC to Vietnam timezone (UTC+7)
-    final localTime = reservationTime!.add(const Duration(hours: 7));
+    print('Reservation Time (UTC): $reservationTime');
+    // final localTime = reservationTime!.add(const Duration(hours: 7));
+    final localTime = reservationTime!.add(const Duration(hours: 0));
     final hour = localTime.hour.toString().padLeft(2, '0');
     final minute = localTime.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
