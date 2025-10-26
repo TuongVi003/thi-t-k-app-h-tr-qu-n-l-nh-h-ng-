@@ -15,6 +15,7 @@ router.register('menu', views.MenuView, basename='menu')
 router.register('categories', views.DanhMucView, basename='category')
 router.register('about-us', views.AboutUsView, basename='about-us')
 router.register('tables-for-reservations', views.UserTableView, basename='tfr')
+router.register('statistics', views.StatisticsView, basename='statistics')
 
 
 urlpatterns = [

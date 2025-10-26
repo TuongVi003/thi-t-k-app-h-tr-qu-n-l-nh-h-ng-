@@ -8,6 +8,7 @@ import 'package:qlnh_nhan_vien/services/takeaway_service.dart';
 import 'package:qlnh_nhan_vien/models/user.dart';
 import 'package:qlnh_nhan_vien/models/takeaway_order.dart';
 import 'package:qlnh_nhan_vien/features/directly_order/directly_order.dart';
+import 'package:qlnh_nhan_vien/features/statistics/pages/statistics_screen.dart';
 
 
 class DashboardScreen extends StatefulWidget {
@@ -29,7 +30,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     const BookingManagementScreen(),
     const DineInOrderListPage(),
     const TakeawayManagementScreen(),
-    const Center(child: Text('Thống kê', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
+    const StatisticsScreen(),
   ];
 
   @override

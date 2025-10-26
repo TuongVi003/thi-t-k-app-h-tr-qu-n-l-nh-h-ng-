@@ -1,6 +1,6 @@
 class ApiEndpoints {
 //  static const String baseUrl = 'https://d9p0zhfk-8000.asse.devtunnels.ms';
-    static const String baseUrl = 'https://p61nc0b1-8000.asse.devtunnels.ms';
+  static const String baseUrl = 'https://p61nc0b1-8000.asse.devtunnels.ms';
 
   // OAuth2 endpoints
   static const String login = '$baseUrl/o/token/';
@@ -35,6 +35,13 @@ class ApiEndpoints {
   // User Management
   static const String checkIn = '$baseUrl/api/users/check-in/';
   static const String checkOut = '$baseUrl/api/users/check-out/';
+
+  // Statistics
+  static const String statistics = '$baseUrl/api/statistics/';
+  static const String orderStatistics = '$baseUrl/api/statistics/orders/';
+
+  
+
 }
 
 class OAuth2Config {
