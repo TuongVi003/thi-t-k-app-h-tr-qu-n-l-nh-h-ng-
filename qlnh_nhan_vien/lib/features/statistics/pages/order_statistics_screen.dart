@@ -211,13 +211,6 @@ class _OrderStatisticsScreenState extends State<OrderStatisticsScreen> {
             const SizedBox(height: 8),
             _buildByTypeCard(),
             const SizedBox(height: 24),
-            
-            // By Staff
-            if (_orderStats!.byStaff.isNotEmpty) ...[
-              _buildSectionTitle('Theo nhân viên', Icons.person),
-              const SizedBox(height: 8),
-              _buildByStaffCard(),
-            ],
           ],
         ),
       ),
@@ -345,7 +338,10 @@ class _OrderStatisticsScreenState extends State<OrderStatisticsScreen> {
             ),
             const Divider(height: 32),
             // List
-            ...byStatus.map((item) => _buildStatusItem(item, total, colors[item.status]!)),
+            ...byStatus.map((item) {
+              final color = colors[item.status] ?? Colors.grey;
+              return _buildStatusItem(item, total, color);
+            }).toList(),
           ],
         ),
       ),
@@ -373,7 +369,7 @@ class _OrderStatisticsScreenState extends State<OrderStatisticsScreen> {
                 width: 16,
                 height: 16,
                 decoration: BoxDecoration(
-                  color: colors[item.status],
+                  color: colors[item.status] ?? Colors.grey,
                   shape: BoxShape.circle,
                 ),
               ),
