@@ -1,0 +1,10 @@
+- Quên mật khẩu
+- Đặt hàng mang về: thêm màn hình cho khách hàng chọn tự lấy hay ship về
+- Khi ship hàng: nhân viên nhận đơn thì thấy địa chỉ của khách, rồi thông báo cho khách phí ship
+- Thanh toán VietQR cho app khách hàng và nhân viên
+
+
+
+
+
+

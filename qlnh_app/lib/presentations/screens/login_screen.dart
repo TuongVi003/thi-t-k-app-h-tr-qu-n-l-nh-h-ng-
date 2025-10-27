@@ -133,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _emailController,
                   decoration: InputDecoration(
-                    labelText: 'Số điện thoại / Tên đăng nhập',
+                    labelText: 'Tên đăng nhập',
                     prefixIcon: const Icon(Icons.person),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -143,7 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Vui lòng nhập số điện thoại hoặc tên đăng nhập';
+                      return 'Vui lòng nhập tên đăng nhập';
                     }
                     return null;
                   },

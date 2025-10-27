@@ -99,7 +99,7 @@ class _MenuTabState extends State<MenuTab> {
           const SizedBox(height: 16),
 
           // Takeaway status widget
-          const TakeawayStatusWidget(),
+          // const TakeawayStatusWidget(),
 
           // Info banner (no separate cart, use main cart from HomeScreen)
           // Container(

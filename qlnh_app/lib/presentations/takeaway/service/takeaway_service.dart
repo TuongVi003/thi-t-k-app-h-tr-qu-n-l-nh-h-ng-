@@ -1,11 +1,12 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import '../../../constants/api.dart';
 import '../../../models/takeaway_order.dart';
 import '../../../services/auth_service.dart';
 
 class TakeawayService {
-  static const int timeout = 10; // seconds
+  static const int timeout = 30; // seconds
 
   /// Tạo đơn takeaway mới
   static Future<TakeawayOrder> createTakeawayOrder({
@@ -50,6 +51,9 @@ class TakeawayService {
         throw Exception(errorData['error'] ?? 'Không thể tạo đơn hàng');
       }
     } catch (e) {
+      if (e is TimeoutException) {
+        throw Exception('Yêu cầu tạo đơn vượt quá thời gian chờ (${timeout}s). Vui lòng thử lại.');
+      }
       throw Exception('Lỗi tạo đơn hàng: $e');
     }
   }
@@ -77,6 +81,9 @@ class TakeawayService {
         throw Exception('Không thể tải danh sách đơn hàng');
       }
     } catch (e) {
+      if (e is TimeoutException) {
+        throw Exception('Yêu cầu tải danh sách đơn vượt quá thời gian chờ (${timeout}s). Vui lòng thử lại.');
+      }
       throw Exception('Lỗi tải đơn hàng: $e');
     }
   }
@@ -104,6 +111,9 @@ class TakeawayService {
         throw Exception('Không thể tải chi tiết đơn hàng');
       }
     } catch (e) {
+      if (e is TimeoutException) {
+        throw Exception('Yêu cầu tải chi tiết đơn vượt quá thời gian chờ (${timeout}s). Vui lòng thử lại.');
+      }
       throw Exception('Lỗi tải chi tiết đơn hàng: $e');
     }
   }
@@ -132,6 +142,9 @@ class TakeawayService {
         throw Exception(errorData['error'] ?? 'Không thể hủy đơn hàng');
       }
     } catch (e) {
+      if (e is TimeoutException) {
+        throw Exception('Yêu cầu hủy đơn vượt quá thời gian chờ (${timeout}s). Vui lòng thử lại.');
+      }
       throw Exception('Lỗi hủy đơn hàng: $e');
     }
   }

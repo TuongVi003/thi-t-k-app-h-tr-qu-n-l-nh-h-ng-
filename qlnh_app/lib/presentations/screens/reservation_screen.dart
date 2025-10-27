@@ -38,14 +38,53 @@ class _ReservationScreenState extends State<ReservationScreen> {
     );
     if (date == null) return;
 
+    // Choose a sensible initial time. If the user picked today's date, start
+    // the time picker at the current time (plus one minute) so selecting a
+    // past time is less likely.
+    final bool isToday = date.year == now.year && date.month == now.month && date.day == now.day;
+    final initialTime = isToday
+        ? TimeOfDay.fromDateTime(now.add(const Duration(minutes: 1)))
+        : TimeOfDay(hour: now.hour, minute: 0);
+
     final time = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(now.add(const Duration(hours: 1))),
+      initialTime: initialTime,
     );
     if (time == null) return;
 
+    final selected = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+
+    // If the user selected a past time for today, show a dialog and allow
+    // them to pick again or cancel.
+    if (isToday && selected.isBefore(now)) {
+      final retry = await showDialog<bool?>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Thời gian không hợp lệ'),
+          content: const Text('Bạn đã chọn thời gian trong quá khứ. Vui lòng chọn thời gian trong tương lai.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Hủy'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Chọn lại'),
+            ),
+          ],
+        ),
+      );
+
+      if (retry == true) {
+        // Let user pick date/time again.
+        _pickDateTime();
+        return;
+      }
+      return;
+    }
+
     setState(() {
-      _dateTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      _dateTime = selected;
     });
   }
 

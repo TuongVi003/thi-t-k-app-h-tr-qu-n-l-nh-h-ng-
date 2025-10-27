@@ -131,93 +131,131 @@ class _CartTabState extends State<CartTab> {
     
     if (thoiGianLayMon == null || !context.mounted) return;
     
-    final gioLayMon = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-      helpText: '',  // Empty to hide default helpText
-      builder: (context, child) {
-        return Dialog(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Custom large help text header
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.accent, AppColors.accentDark],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(28),
-                    topRight: Radius.circular(28),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      color: AppColors.textWhite,
-                      size: 28,
+    // Ensure user cannot pick a past time when the chosen date is today.
+    final now = DateTime.now();
+    final bool isToday = thoiGianLayMon.year == now.year &&
+        thoiGianLayMon.month == now.month &&
+        thoiGianLayMon.day == now.day;
+
+    TimeOfDay initialTime = isToday
+        ? TimeOfDay.fromDateTime(now.add(const Duration(minutes: 1)))
+        : TimeOfDay.now();
+
+    TimeOfDay? gioLayMon;
+    DateTime ngayLayMon;
+
+    while (true) {
+      gioLayMon = await showTimePicker(
+        context: context,
+        initialTime: initialTime,
+        helpText: '', // Empty to hide default helpText
+        builder: (context, child) {
+          return Dialog(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Custom large help text header
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppColors.accent, AppColors.accentDark],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'CHỌN GIỜ LẤY MÓN',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textWhite,
-                          letterSpacing: 0.5,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(28),
+                      topRight: Radius.circular(28),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        color: AppColors.textWhite,
+                        size: 28,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'CHỌN GIỜ LẤY MÓN',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textWhite,
+                            letterSpacing: 0.5,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              // Native picker with custom theme, constrained to avoid vertical overflow
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.6,
-                ),
-                child: Theme(
-                  data: Theme.of(context).copyWith(
-                    colorScheme: ColorScheme.light(
-                      primary: AppColors.accent,
-                      onPrimary: AppColors.textWhite,
-                      surface: AppColors.surface,
-                      onSurface: AppColors.textPrimary,
-                    ),
-                    timePickerTheme: TimePickerThemeData(
-                      dialHandColor: AppColors.accent,
-                      dialBackgroundColor: AppColors.primaryVeryLight,
-                      hourMinuteTextColor: MaterialStateColor.resolveWith(
-                        (states) => AppColors.textPrimary,
-                      ),
-                    ),
+                    ],
                   ),
-                  child: SingleChildScrollView(child: child!),
                 ),
-              ),
+                // Native picker with custom theme, constrained to avoid vertical overflow
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.6,
+                  ),
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: ColorScheme.light(
+                        primary: AppColors.accent,
+                        onPrimary: AppColors.textWhite,
+                        surface: AppColors.surface,
+                        onSurface: AppColors.textPrimary,
+                      ),
+                      timePickerTheme: TimePickerThemeData(
+                        dialHandColor: AppColors.accent,
+                        dialBackgroundColor: AppColors.primaryVeryLight,
+                        hourMinuteTextColor: MaterialStateColor.resolveWith(
+                          (states) => AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    child: SingleChildScrollView(child: child!),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      if (gioLayMon == null || !context.mounted) return;
+
+      ngayLayMon = DateTime(
+        thoiGianLayMon.year,
+        thoiGianLayMon.month,
+        thoiGianLayMon.day,
+        gioLayMon.hour,
+        gioLayMon.minute,
+      );
+
+      if (isToday && ngayLayMon.isBefore(now)) {
+        final retry = await showDialog<bool?>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Thời gian không hợp lệ'),
+            content: const Text('Bạn đã chọn giờ trong quá khứ. Vui lòng chọn giờ trong tương lai.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Hủy')),
+              TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Chọn lại')),
             ],
           ),
         );
-      },
-    );
-    
-    if (gioLayMon == null || !context.mounted) return;
-    
-    final ngayLayMon = DateTime(
-      thoiGianLayMon.year,
-      thoiGianLayMon.month,
-      thoiGianLayMon.day,
-      gioLayMon.hour,
-      gioLayMon.minute,
-    );
+
+        if (retry == true) {
+          // update initialTime to now+1min to help user pick a valid time
+          initialTime = TimeOfDay.fromDateTime(DateTime.now().add(const Duration(minutes: 1)));
+          continue; // re-open time picker
+        }
+        return; // user cancelled
+      }
+
+      break; // picked valid time
+    }
 
     // Show loading after getting time
     if (context.mounted) {
