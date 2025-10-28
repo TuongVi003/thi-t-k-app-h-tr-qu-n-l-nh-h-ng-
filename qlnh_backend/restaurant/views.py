@@ -261,10 +261,19 @@ class TakeawayOrderView(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
         
+        # Tạo thông báo dựa trên phương thức giao hàng
+        print('Order delivery method:', order.phuong_thuc_giao_hang)
+        if order.phuong_thuc_giao_hang == 'Giao hàng tận nơi':
+            notification_title = "Đơn hàng giao tận nơi mới"
+            notification_message = f"Đơn giao hàng #{order.id} vừa được tạo. Địa chỉ: {order.dia_chi_giao_hang}"
+        else:
+            notification_title = "Đơn hàng mang về mới"
+            notification_message = f"Đơn hàng Mang về #{order.id} vừa được tạo. Khách sẽ tự đến lấy."
+        
         # Push notification to all employees
         employees = NguoiDung.objects.filter(loai_nguoi_dung='nhan_vien')
         for emp in employees:
-            send_to_user(emp, "Đơn hàng mới", f"Đơn hàng Mang về #{order.id} vừa được tạo.")
+            send_to_user(emp, notification_title, notification_message)
         
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
@@ -368,7 +377,10 @@ class TakeawayOrderView(viewsets.ModelViewSet):
         order.save()
 
         if new_status == 'ready':
-            send_to_user(order.khach_hang, "Món đã sẵn sàng", f"Đơn hàng #{order.id} của bạn đã sẵn sàng để lấy.")
+            if order.phuong_thuc_giao_hang == 'Giao hàng tận nơi':
+                send_to_user(order.khach_hang, "Món đã sẵn sàng", f"Đơn hàng #{order.id} của bạn đã sẵn sàng. Nhân viên sẽ giao đến địa chỉ: {order.dia_chi_giao_hang}")
+            else:
+                send_to_user(order.khach_hang, "Món đã sẵn sàng", f"Đơn hàng #{order.id} của bạn đã sẵn sàng để lấy.")
         if new_status == 'completed':
             send_to_user(order.khach_hang, "Đơn hàng hoàn thành", f"Đơn hàng #{order.id} của bạn đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ!")
 
@@ -412,12 +424,20 @@ class TakeawayOrderView(viewsets.ModelViewSet):
         if serializer.is_valid():
             order = serializer.save()
             
+            # Tạo thông báo dựa trên phương thức giao hàng
+            if order.phuong_thuc_giao_hang == 'Giao hàng tận nơi':
+                customer_message = f"Nhân viên {request.user.ho_ten} đã tạo đơn giao hàng #{order.id} cho bạn. Địa chỉ giao: {order.dia_chi_giao_hang}"
+                chef_message = f"Đơn giao hàng #{order.id} vừa được tạo bởi {request.user.ho_ten}. Địa chỉ: {order.dia_chi_giao_hang}"
+            else:
+                customer_message = f"Nhân viên {request.user.ho_ten} đã tạo đơn mang về #{order.id} cho bạn. Vui lòng đến lấy món khi sẵn sàng."
+                chef_message = f"Đơn mang về #{order.id} vừa được tạo bởi {request.user.ho_ten}. Khách sẽ tự đến lấy."
+            
             # Gửi thông báo cho khách hàng (nếu có tài khoản)
             if order.khach_hang:
                 send_to_user(
                     order.khach_hang,
                     "Đơn mang về mới",
-                    f"Nhân viên {request.user.ho_ten} đã tạo đơn mang về #{order.id} cho bạn",
+                    customer_message,
                     data={'order_id': str(order.id), 'type': 'takeaway_order'}
                 )
             
@@ -431,7 +451,7 @@ class TakeawayOrderView(viewsets.ModelViewSet):
                 send_to_user(
                     chef,
                     "Đơn mang về mới",
-                    f"Đơn mang về #{order.id} vừa được tạo bởi {request.user.ho_ten}",
+                    chef_message,
                     data={'order_id': str(order.id), 'type': 'new_takeaway_order'}
                 )
             

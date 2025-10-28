@@ -28,7 +28,7 @@ class TakeawayService {
         final List<dynamic> jsonData = json.decode(response.body);
         print('DEBUG: Raw API response: $jsonData'); // Debug log
         return jsonData.map((json) {
-          print('DEBUG: Processing order JSON: $json'); // Debug log
+          // print('DEBUG: Processing order JSON: $json'); // Debug log
           return TakeawayOrder.fromJson(json);
         }).toList();
       } else {
@@ -231,6 +231,8 @@ class TakeawayService {
     String? ghiChu,
     DateTime? thoiGianKhachLay,
     int? banAnId,
+    String? phuongThucGiaoHang,
+    String? diaChiGiaoHang,
   }) async {
     try {
       final token = await AuthService.getValidToken();
@@ -267,6 +269,14 @@ class TakeawayService {
         body['ban_an_id'] = banAnId;
       }
 
+      if (phuongThucGiaoHang != null && phuongThucGiaoHang.isNotEmpty) {
+        body['phuong_thuc_giao_hang'] = phuongThucGiaoHang;
+      }
+
+      if (diaChiGiaoHang != null && diaChiGiaoHang.isNotEmpty) {
+        body['dia_chi_giao_hang'] = diaChiGiaoHang;
+      }
+
       print('📦 Creating staff takeaway order: $body');
 
       final response = await http.post(
@@ -299,4 +309,5 @@ class TakeawayService {
       throw Exception('Lỗi tạo đơn: $e');
     }
   }
+
 }

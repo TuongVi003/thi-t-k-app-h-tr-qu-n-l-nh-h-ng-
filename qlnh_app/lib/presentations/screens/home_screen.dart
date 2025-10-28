@@ -171,78 +171,78 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         // Floating tooltip overlay
-        if (_showReservationTooltip)
-          Positioned(
-            top: kToolbarHeight + 40, // Move closer to AppBar
-            right: 60, // Move closer to the account icon
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                // Arrow pointing upward to the account icon
-                Padding(
-                  padding: const EdgeInsets.only(right: 8), // Much closer to right edge
-                  child: CustomPaint(
-                    size: const Size(80, 30), // Wider and shorter
-                    painter: ArrowPainter(),
-                  ),
-                ),
-                const SizedBox(height: 2), // Smaller gap
-                // Tooltip box
-                Material(
-                  elevation: 8,
-                  borderRadius: BorderRadius.circular(12),
-                  color: AppColors.accent,
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    constraints: const BoxConstraints(maxWidth: 200),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.event_seat,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'Đặt bàn tại đây!',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: _hideReservationTooltip,
-                              child: const Icon(
-                                Icons.close,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Nhấn vào biểu tượng tài khoản để xem menu đặt bàn',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        // if (_showReservationTooltip)
+          // Positioned(
+          //   top: kToolbarHeight + 40, // Move closer to AppBar
+          //   right: 60, // Move closer to the account icon
+          //   child: Column(
+          //     crossAxisAlignment: CrossAxisAlignment.end,
+          //     children: [
+          //       // Arrow pointing upward to the account icon
+          //       Padding(
+          //         padding: const EdgeInsets.only(right: 8), // Much closer to right edge
+          //         child: CustomPaint(
+          //           size: const Size(80, 30), // Wider and shorter
+          //           painter: ArrowPainter(),
+          //         ),
+          //       ),
+          //       const SizedBox(height: 2), // Smaller gap
+          //       // Tooltip box
+          //       Material(
+          //         elevation: 8,
+          //         borderRadius: BorderRadius.circular(12),
+          //         color: AppColors.accent,
+          //         child: Container(
+          //           padding: const EdgeInsets.all(12),
+          //           constraints: const BoxConstraints(maxWidth: 200),
+          //           child: Column(
+          //             mainAxisSize: MainAxisSize.min,
+          //             children: [
+          //               Row(
+          //                 mainAxisSize: MainAxisSize.min,
+          //                 children: [
+          //                   const Icon(
+          //                     Icons.event_seat,
+          //                     color: Colors.white,
+          //                     size: 20,
+          //                   ),
+          //                   const SizedBox(width: 8),
+          //                   const Expanded(
+          //                     child: Text(
+          //                       'Đặt bàn tại đây!',
+          //                       style: TextStyle(
+          //                         color: Colors.white,
+          //                         fontWeight: FontWeight.bold,
+          //                         fontSize: 14,
+          //                       ),
+          //                     ),
+          //                   ),
+          //                   GestureDetector(
+          //                     onTap: _hideReservationTooltip,
+          //                     child: const Icon(
+          //                       Icons.close,
+          //                       color: Colors.white,
+          //                       size: 18,
+          //                     ),
+          //                   ),
+          //                 ],
+          //               ),
+          //               const SizedBox(height: 8),
+          //               const Text(
+          //                 'Nhấn vào biểu tượng tài khoản để xem menu đặt bàn',
+          //                 style: TextStyle(
+          //                   color: Colors.white70,
+          //                   fontSize: 12,
+          //                 ),
+          //                 textAlign: TextAlign.center,
+          //               ),
+          //             ],
+          //           ),
+          //         ),
+          //       ),
+          //     ],
+          //   ),
+          // ),
       ],
     );
   }

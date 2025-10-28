@@ -257,7 +257,78 @@ class _CartTabState extends State<CartTab> {
       break; // picked valid time
     }
 
-    // Show loading after getting time
+    // Ask for delivery method (pickup or delivery) and collect address if needed
+    String? phuongThucGiaoHang;
+    String? diaChiGiaoHang;
+
+    final deliveryResult = await showDialog<Map<String, String?>?>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        String selected = 'Tự đến lấy';
+        final TextEditingController _addrCtl = TextEditingController();
+        return StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            title: const Text('Phương thức giao hàng'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<String>(
+                  value: 'Tự đến lấy',
+                  groupValue: selected,
+                  title: const Text('Tự đến lấy'),
+                  onChanged: (v) => setState(() {
+                    selected = v!;
+                  }),
+                ),
+                RadioListTile<String>(
+                  value: 'Giao hàng tận nơi',
+                  groupValue: selected,
+                  title: const Text('Giao hàng tận nơi'),
+                  onChanged: (v) => setState(() {
+                    selected = v!;
+                  }),
+                ),
+                if (selected == 'Giao hàng tận nơi') ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _addrCtl,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Địa chỉ giao hàng',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(ctx).pop(null), child: const Text('Hủy')),
+              TextButton(
+                onPressed: () {
+                  if (selected == 'Giao hàng tận nơi' && _addrCtl.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Vui lòng nhập địa chỉ giao hàng')));
+                    return;
+                  }
+                  Navigator.of(ctx).pop({
+                    'phuong_thuc_giao_hang': selected,
+                    'dia_chi_giao_hang': _addrCtl.text.trim(),
+                  });
+                },
+                child: const Text('Xác nhận'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (deliveryResult == null || !context.mounted) return;
+
+    phuongThucGiaoHang = deliveryResult['phuong_thuc_giao_hang'];
+    diaChiGiaoHang = deliveryResult['dia_chi_giao_hang'];
+
+    // Show loading after getting time and delivery info
     if (context.mounted) {
       showDialog(
         context: context,

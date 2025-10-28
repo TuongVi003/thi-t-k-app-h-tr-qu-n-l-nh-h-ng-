@@ -213,7 +213,8 @@ class TakeawayOrderCreateSerializer(ModelSerializer):
     class Meta:
         model = Order
         fields = ['id', 'ghi_chu', 'mon_an_list', 'thoi_gian_khach_lay', 
-                  'order_time', 'trang_thai', 'loai_order', 'chi_tiet_order', 'tong_tien']
+                  'order_time', 'trang_thai', 'loai_order', 'chi_tiet_order', 'tong_tien',
+                  'phuong_thuc_giao_hang', 'dia_chi_giao_hang']
     
     def get_tong_tien(self, obj):
         return sum([item.so_luong * item.gia for item in obj.chitietorder_set.all()])
@@ -222,6 +223,20 @@ class TakeawayOrderCreateSerializer(ModelSerializer):
         from django.utils import timezone
         
         mon_an_list = validated_data.pop('mon_an_list')
+        
+        # Validate delivery info
+        phuong_thuc_giao_hang = validated_data.get('phuong_thuc_giao_hang')
+        dia_chi_giao_hang = validated_data.get('dia_chi_giao_hang')
+        
+        # Nếu chọn giao hàng tận nơi, địa chỉ là bắt buộc
+        if phuong_thuc_giao_hang == 'Giao hàng tận nơi' and not dia_chi_giao_hang:
+            raise serializers.ValidationError({
+                'dia_chi_giao_hang': 'Vui lòng cung cấp địa chỉ giao hàng'
+            })
+        
+        # Nếu chọn tự đến lấy, không cần địa chỉ
+        if phuong_thuc_giao_hang == 'Tự đến lấy':
+            validated_data['dia_chi_giao_hang'] = None
 
         # Tạo order takeaway
         order = Order.objects.create(
@@ -264,7 +279,8 @@ class StaffTakeawayOrderSerializer(ModelSerializer):
     class Meta:
         model = Order
         fields = ['id', 'ghi_chu', 'mon_an_list', 'thoi_gian_khach_lay', 
-                  'ban_an_id', 'khach_ho_ten', 'khach_so_dien_thoai', 'khach_hang_id']
+                  'ban_an_id', 'khach_ho_ten', 'khach_so_dien_thoai', 'khach_hang_id',
+                  'phuong_thuc_giao_hang', 'dia_chi_giao_hang']
     
     def create(self, validated_data):
         from django.utils import timezone

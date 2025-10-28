@@ -123,6 +123,25 @@ class Order(models.Model):
     thoi_gian_khach_lay =models.DateTimeField(null=True)
     thoi_gian_lay = models.IntegerField(null=True, blank=True, help_text="Thời gian ước tính lấy món (phút)")
     thoi_gian_san_sang = models.DateTimeField(null=True, blank=True, help_text="Thời gian món sẵn sàng")
+    
+    # Phương thức giao hàng cho đơn takeaway
+    PHUONG_THUC_GIAO_HANG = (
+        ('Tự đến lấy', 'Tự đến lấy'),
+        ('Giao hàng tận nơi', 'Giao hàng tận nơi'),
+    )
+    phuong_thuc_giao_hang = models.CharField(
+        max_length=20, 
+        choices=PHUONG_THUC_GIAO_HANG, 
+        null=True, 
+        blank=True,
+        help_text="Phương thức giao hàng (chỉ áp dụng cho đơn takeaway)"
+    )
+    dia_chi_giao_hang = models.TextField(
+        blank=True, 
+        null=True,
+        help_text="Địa chỉ giao hàng (chỉ áp dụng khi chọn giao hàng tận nơi)"
+    )
+    
     ghi_chu = models.TextField(blank=True, null=True)
 
     def __str__(self):

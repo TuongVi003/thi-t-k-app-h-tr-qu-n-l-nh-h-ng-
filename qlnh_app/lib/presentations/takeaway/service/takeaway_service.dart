@@ -13,6 +13,8 @@ class TakeawayService {
     required List<TakeawayCartItem> cartItems,
     DateTime? ngay,
     String? ghiChu,
+    String? phuongThucGiaoHang,
+    String? diaChiGiaoHang,
   }) async {
     try {
       final authService = AuthService.instance;
@@ -31,6 +33,8 @@ class TakeawayService {
               },
             )
             .toList(),
+        if (phuongThucGiaoHang != null) 'phuong_thuc_giao_hang': phuongThucGiaoHang,
+        if (diaChiGiaoHang != null && diaChiGiaoHang.isNotEmpty) 'dia_chi_giao_hang': diaChiGiaoHang,
         if (ngay != null) 'thoi_gian_khach_lay': ngay.toIso8601String(),
       };
       print('Thoi gian khach lay: ${ngay?.toIso8601String()}');
