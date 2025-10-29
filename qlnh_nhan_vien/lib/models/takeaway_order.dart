@@ -8,6 +8,8 @@ class TakeawayOrder {
   final int? thoiGianLay;
   final DateTime? thoiGianSanSang;
   final String? loaiOrder;
+  final String? phuongThucGiaoHang;
+  final String? diaChiGiaoHang;
   final KhachHangDetail? khachHangDetail;
   final NhanVienDetail? nhanVienDetail;
   final List<ChiTietOrder> chiTietOrder;
@@ -21,6 +23,8 @@ class TakeawayOrder {
     this.thoiGianLay,
     this.thoiGianSanSang,
     this.loaiOrder,
+    this.phuongThucGiaoHang,
+    this.diaChiGiaoHang,
     this.khachHangDetail,
     this.nhanVienDetail,
     required this.chiTietOrder,
@@ -36,10 +40,13 @@ class TakeawayOrder {
       thoiGianLay: SafeParser.toIntOrNull(json['thoi_gian_lay']),
       thoiGianSanSang: SafeParser.toDateTimeOrNull(json['thoi_gian_san_sang']),
       loaiOrder: SafeParser.toStringOrNull(json['loai_order']),
-      khachHangDetail: json['khach_hang_detail'] != null 
+      phuongThucGiaoHang:
+          SafeParser.toStringOrNull(json['phuong_thuc_giao_hang']),
+      diaChiGiaoHang: SafeParser.toStringOrNull(json['dia_chi_giao_hang']),
+      khachHangDetail: json['khach_hang_detail'] != null
           ? KhachHangDetail.fromJson(json['khach_hang_detail'])
           : null,
-      nhanVienDetail: json['nhan_vien_detail'] != null 
+      nhanVienDetail: json['nhan_vien_detail'] != null
           ? NhanVienDetail.fromJson(json['nhan_vien_detail'])
           : null,
       chiTietOrder: (json['chi_tiet_order'] as List)

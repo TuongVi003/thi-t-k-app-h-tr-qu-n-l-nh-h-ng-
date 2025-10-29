@@ -306,6 +306,58 @@ class _TakeawayManagementScreenState extends State<TakeawayManagementScreen> wit
                 ],
               ),
               
+              // Delivery method (highlighted) and address (if delivery)
+              if (order.phuongThucGiaoHang != null && order.phuongThucGiaoHang!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Chip(
+                      avatar: Icon(
+                        order.phuongThucGiaoHang == 'Giao hàng tận nơi'
+                            ? Icons.delivery_dining
+                            : Icons.storefront,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      label: Text(
+                        order.phuongThucGiaoHang!,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                      backgroundColor: order.phuongThucGiaoHang == 'Giao hàng tận nơi'
+                          ? Colors.deepOrangeAccent
+                          : Colors.green,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                ),
+
+                // On narrow space or for clearer visibility, render address in a subtle box below
+                if (order.phuongThucGiaoHang == 'Giao hàng tận nơi' && order.diaChiGiaoHang != null && order.diaChiGiaoHang!.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.location_on, size: 16, color: Colors.deepOrangeAccent),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            order.diaChiGiaoHang!,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+
               if (order.thoiGianLay != null) ...[
                 const SizedBox(height: 4),
                 Row(

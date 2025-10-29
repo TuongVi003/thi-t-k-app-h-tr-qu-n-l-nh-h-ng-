@@ -359,6 +359,8 @@ class _CartTabState extends State<CartTab> {
         ghiChu: _noteController.text.trim().isEmpty
             ? null
             : _noteController.text.trim(),
+        phuongThucGiaoHang: phuongThucGiaoHang,
+        diaChiGiaoHang: diaChiGiaoHang,
       );
 
       // Close loading
