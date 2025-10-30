@@ -143,6 +143,8 @@ class Order(models.Model):
     )
     
     ghi_chu = models.TextField(blank=True, null=True)
+    latitude = models.DecimalField(max_digits=16, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=16, decimal_places=6, null=True, blank=True)
 
     def __str__(self):
         if self.loai_order == 'takeaway':

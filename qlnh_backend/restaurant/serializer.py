@@ -214,7 +214,7 @@ class TakeawayOrderCreateSerializer(ModelSerializer):
         model = Order
         fields = ['id', 'ghi_chu', 'mon_an_list', 'thoi_gian_khach_lay', 
                   'order_time', 'trang_thai', 'loai_order', 'chi_tiet_order', 'tong_tien',
-                  'phuong_thuc_giao_hang', 'dia_chi_giao_hang']
+                  'phuong_thuc_giao_hang', 'dia_chi_giao_hang', 'latitude', 'longitude']
     
     def get_tong_tien(self, obj):
         return sum([item.so_luong * item.gia for item in obj.chitietorder_set.all()])
@@ -238,6 +238,8 @@ class TakeawayOrderCreateSerializer(ModelSerializer):
         if phuong_thuc_giao_hang == 'Tự đến lấy':
             validated_data['dia_chi_giao_hang'] = None
 
+        print('Latitude:', validated_data.get('latitude'))
+        print('Longitude:', validated_data.get('longitude'))
         # Tạo order takeaway
         order = Order.objects.create(
             khach_hang=self.context['request'].user,
@@ -280,7 +282,7 @@ class StaffTakeawayOrderSerializer(ModelSerializer):
         model = Order
         fields = ['id', 'ghi_chu', 'mon_an_list', 'thoi_gian_khach_lay', 
                   'ban_an_id', 'khach_ho_ten', 'khach_so_dien_thoai', 'khach_hang_id',
-                  'phuong_thuc_giao_hang', 'dia_chi_giao_hang']
+                  'phuong_thuc_giao_hang', 'dia_chi_giao_hang', 'latitude', 'longitude',]
     
     def create(self, validated_data):
         from django.utils import timezone

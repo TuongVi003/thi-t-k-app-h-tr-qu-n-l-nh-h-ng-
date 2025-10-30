@@ -15,6 +15,8 @@ class TakeawayService {
     String? ghiChu,
     String? phuongThucGiaoHang,
     String? diaChiGiaoHang,
+    double? latitude,
+    double? longitude,
   }) async {
     try {
       final authService = AuthService.instance;
@@ -22,6 +24,14 @@ class TakeawayService {
       if (!authService.isLoggedIn || authService.accessToken == null) {
         throw Exception('Vui lòng đăng nhập để đặt món');
       }
+
+      // Round coordinates to reduce total digits and avoid backend validation errors
+      double? roundedLatitude = latitude == null
+          ? null
+          : double.parse(latitude.toStringAsFixed(6));
+      double? roundedLongitude = longitude == null
+          ? null
+          : double.parse(longitude.toStringAsFixed(6));
 
       final orderData = {
         'ghi_chu': ghiChu ?? '',
@@ -35,6 +45,8 @@ class TakeawayService {
             .toList(),
         if (phuongThucGiaoHang != null) 'phuong_thuc_giao_hang': phuongThucGiaoHang,
         if (diaChiGiaoHang != null && diaChiGiaoHang.isNotEmpty) 'dia_chi_giao_hang': diaChiGiaoHang,
+        if (roundedLatitude != null) 'latitude': roundedLatitude,
+        if (roundedLongitude != null) 'longitude': roundedLongitude,
         if (ngay != null) 'thoi_gian_khach_lay': ngay.toIso8601String(),
       };
       print('Thoi gian khach lay: ${ngay?.toIso8601String()}');
@@ -49,9 +61,11 @@ class TakeawayService {
 
       if (response.statusCode == 201) {
         final jsonData = json.decode(response.body);
+        print('Thành công: $jsonData');
         return TakeawayOrder.fromJson(jsonData);
       } else {
         final errorData = json.decode(response.body);
+        print('Thất bại: $errorData');
         throw Exception(errorData['error'] ?? 'Không thể tạo đơn hàng');
       }
     } catch (e) {

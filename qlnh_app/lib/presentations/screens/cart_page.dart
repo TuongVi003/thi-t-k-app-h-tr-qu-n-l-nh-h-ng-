@@ -7,6 +7,8 @@ import 'login_screen.dart';
 import 'package:qlnh_app/services/auth_service.dart';
 import '../takeaway/pages/takeaway_success_screen.dart';
 import 'package:qlnh_app/constants/utils.dart';
+import 'package:latlong2/latlong.dart';
+import 'location_picker_screen.dart';
 
 class CartTab extends StatefulWidget {
   final List<CartItem> cartItems;
@@ -260,13 +262,14 @@ class _CartTabState extends State<CartTab> {
     // Ask for delivery method (pickup or delivery) and collect address if needed
     String? phuongThucGiaoHang;
     String? diaChiGiaoHang;
+    LatLng? viTriGiaoHang;
 
-    final deliveryResult = await showDialog<Map<String, String?>?>(
+    // First, ask for delivery method
+    final deliveryMethod = await showDialog<String?>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) {
         String selected = 'Tự đến lấy';
-        final TextEditingController _addrCtl = TextEditingController();
         return StatefulBuilder(
           builder: (context, setState) => AlertDialog(
             title: const Text('Phương thức giao hàng'),
@@ -289,33 +292,13 @@ class _CartTabState extends State<CartTab> {
                     selected = v!;
                   }),
                 ),
-                if (selected == 'Giao hàng tận nơi') ...[
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _addrCtl,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Địa chỉ giao hàng',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ],
               ],
             ),
             actions: [
               TextButton(onPressed: () => Navigator.of(ctx).pop(null), child: const Text('Hủy')),
               TextButton(
-                onPressed: () {
-                  if (selected == 'Giao hàng tận nơi' && _addrCtl.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Vui lòng nhập địa chỉ giao hàng')));
-                    return;
-                  }
-                  Navigator.of(ctx).pop({
-                    'phuong_thuc_giao_hang': selected,
-                    'dia_chi_giao_hang': _addrCtl.text.trim(),
-                  });
-                },
-                child: const Text('Xác nhận'),
+                onPressed: () => Navigator.of(ctx).pop(selected),
+                child: const Text('Tiếp tục'),
               ),
             ],
           ),
@@ -323,10 +306,24 @@ class _CartTabState extends State<CartTab> {
       },
     );
 
-    if (deliveryResult == null || !context.mounted) return;
+    if (deliveryMethod == null || !context.mounted) return;
 
-    phuongThucGiaoHang = deliveryResult['phuong_thuc_giao_hang'];
-    diaChiGiaoHang = deliveryResult['dia_chi_giao_hang'];
+    phuongThucGiaoHang = deliveryMethod;
+
+    // If delivery, open map to select location
+    if (deliveryMethod == 'Giao hàng tận nơi') {
+      final locationResult = await Navigator.push<Map<String, dynamic>?>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const LocationPickerScreen(),
+        ),
+      );
+
+      if (locationResult == null || !context.mounted) return;
+
+      viTriGiaoHang = locationResult['location'] as LatLng?;
+      diaChiGiaoHang = locationResult['formattedAddress'] as String?;
+    }
 
     // Show loading after getting time and delivery info
     if (context.mounted) {
@@ -361,6 +358,8 @@ class _CartTabState extends State<CartTab> {
             : _noteController.text.trim(),
         phuongThucGiaoHang: phuongThucGiaoHang,
         diaChiGiaoHang: diaChiGiaoHang,
+        latitude: viTriGiaoHang?.latitude,
+        longitude: viTriGiaoHang?.longitude,
       );
 
       // Close loading
