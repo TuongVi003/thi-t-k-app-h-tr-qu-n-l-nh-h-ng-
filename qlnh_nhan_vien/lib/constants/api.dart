@@ -40,6 +40,9 @@ class ApiEndpoints {
   static const String statistics = '$baseUrl/api/statistics/';
   static const String orderStatistics = '$baseUrl/api/statistics/orders/';
 
+  // About Us / Settings
+  static const String aboutUs = '$baseUrl/api/about-us/';
+
   
 
 }

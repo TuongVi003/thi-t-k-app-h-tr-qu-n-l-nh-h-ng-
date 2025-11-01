@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class AboutUs {
   final int id;
   final String key;
@@ -35,38 +37,32 @@ class AboutUs {
 
   // Parse JSON content for gio_mo_cua
   Map<String, dynamic>? parseJsonContent() {
-    if (contentType == 'json') {
-      try {
-        // Remove outer quotes if present and parse
-        final jsonString = noiDung.trim();
-        if (jsonString.startsWith('"') && jsonString.endsWith('"')) {
-          final unquoted = jsonString.substring(1, jsonString.length - 1);
-          return _parseJsonString(unquoted);
-        }
-        return _parseJsonString(jsonString);
-      } catch (e) {
-        print('Error parsing JSON content: $e');
-        return null;
-      }
-    }
-    return null;
-  }
+    if (contentType != 'json') return null;
 
-  Map<String, dynamic> _parseJsonString(String jsonString) {
-    // Simple JSON parser for the opening hours format
-    final Map<String, dynamic> result = {};
-    final cleaned = jsonString.replaceAll('{', '').replaceAll('}', '').trim();
-    final pairs = cleaned.split(',');
-    
-    for (final pair in pairs) {
-      final parts = pair.split(':');
-      if (parts.length == 2) {
-        final key = parts[0].trim().replaceAll('"', '');
-        final value = parts[1].trim().replaceAll('"', '');
-        result[key] = value;
+    try {
+      final raw = noiDung.trim();
+
+      // Attempt to decode directly
+      final decoded = json.decode(raw);
+      if (decoded is Map<String, dynamic>) return decoded;
+
+      // If it's a JSON string (double-encoded), decode again
+      if (decoded is String) {
+        final inner = json.decode(decoded);
+        if (inner is Map<String, dynamic>) return inner;
       }
+
+      // If raw is quoted JSON inside a string, try unquoting and decoding
+      if (raw.startsWith('"') && raw.endsWith('"')) {
+        final unquoted = raw.substring(1, raw.length - 1);
+        final second = json.decode(unquoted);
+        if (second is Map<String, dynamic>) return second;
+      }
+
+      return null;
+    } catch (e) {
+      print('Error parsing JSON content: $e');
+      return null;
     }
-    
-    return result;
   }
 }

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../models/takeaway_order.dart';
 import '../services/takeaway_service.dart';
+import '../services/about_us_service.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import 'takeaway_order_detail_screen.dart';
 import 'create_takeaway_order_screen.dart';
+import '../utils/app_utils.dart';
 
 class TakeawayManagementScreen extends StatefulWidget {
   const TakeawayManagementScreen({super.key});
@@ -169,15 +171,27 @@ class _TakeawayManagementScreenState extends State<TakeawayManagementScreen> wit
 
   Future<void> _updateStatus(TakeawayOrder order, TakeawayOrderStatus status) async {
     final isReady = status == TakeawayOrderStatus.ready;
+    final isCompleting = status == TakeawayOrderStatus.completed;
+    
+    // If completing, ask for payment method first
+    String? paymentMethod;
+    if (isCompleting) {
+      paymentMethod = await _showPaymentMethodDialog();
+      if (paymentMethod == null) {
+        // User cancelled the dialog
+        return;
+      }
+    }
+    
     if (isReady) {
       markingReadyIds.add(order.id);
-    } else {
+    } else if (isCompleting) {
       completingIds.add(order.id);
     }
     setState(() {});
 
     try {
-      await TakeawayService.updateStatus(order.id, status);
+      await TakeawayService.updateStatus(order.id, status, paymentMethod: paymentMethod);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Đã cập nhật trạng thái thành công')),
       );
@@ -190,11 +204,189 @@ class _TakeawayManagementScreenState extends State<TakeawayManagementScreen> wit
     } finally {
       if (isReady) {
         markingReadyIds.remove(order.id);
-      } else {
+      } else if (isCompleting) {
         completingIds.remove(order.id);
       }
       if (mounted) setState(() {});
     }
+  }
+
+  Future<String?> _showPaymentMethodDialog() async {
+    final result = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            'Phương thức thanh toán',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Khách hàng thanh toán bằng:'),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.money, color: Colors.green),
+                title: const Text('Tiền mặt'),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(color: Colors.grey.shade300),
+                ),
+                onTap: () => Navigator.of(context).pop('cash'),
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: const Icon(Icons.credit_card, color: Colors.blue),
+                title: const Text('Thẻ/QR'),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(color: Colors.grey.shade300),
+                ),
+                onTap: () => Navigator.of(context).pop('qr_selected'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(null),
+              child: const Text('Hủy'),
+            ),
+          ],
+        );
+      },
+    );
+
+    // If user selected QR, show QR dialog
+    if (result == 'qr_selected') {
+      final qrConfirmed = await _showQrCodeDialog();
+      if (qrConfirmed == true) {
+        return 'card'; // Return 'card' as payment method
+      }
+      return null; // User cancelled QR dialog
+    }
+
+    return result; // Return 'cash' or null
+  }
+
+  Future<bool?> _showQrCodeDialog() async {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            'Quét mã QR để thanh toán',
+            style: TextStyle(fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          content: SingleChildScrollView(
+            child: FutureBuilder<String?>(
+              future: AboutUsService.getPaymentQrUrl(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SizedBox(
+                    height: 200,
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+
+                if (snapshot.hasError || snapshot.data == null) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Không thể tải mã QR\n${snapshot.error ?? ""}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ],
+                  );
+                }
+
+                final qrUrl = snapshot.data!;
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Khách hàng vui lòng quét mã QR bên dưới:',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300, width: 2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Image.network(
+                        qrUrl,
+                        width: 200,
+                        height: 200,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            width: 200,
+                            height: 200,
+                            color: Colors.grey.shade200,
+                            child: const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                                SizedBox(height: 8),
+                                Text('Không thể tải ảnh', style: TextStyle(color: Colors.grey)),
+                              ],
+                            ),
+                          );
+                        },
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            width: 200,
+                            height: 200,
+                            color: Colors.grey.shade100,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Sau khi khách đã thanh toán, nhấn "Xác nhận"',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey, fontSize: 12),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.of(context).pop(true),
+              icon: const Icon(Icons.check),
+              label: const Text('Xác nhận đã thanh toán'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Color _getStatusColor(String status) {

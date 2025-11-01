@@ -27,7 +27,7 @@ class _HomeTabState extends State<HomeTab> {
   Future<void> _loadAboutUsData() async {
     try {
       final data = await AboutService.getAboutUs();
-      if(!mounted) return;
+      if (!mounted) return;
       setState(() {
         _aboutUsMap = {
           for (var item in data.where((item) => item.public)) item.key: item
@@ -157,7 +157,8 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-  Widget _buildModernOpeningHourRow(IconData icon, String day, String hours, Color color) {
+  Widget _buildModernOpeningHourRow(
+      IconData icon, String day, String hours, Color color) {
     return Row(
       children: [
         Container(
@@ -368,14 +369,18 @@ class _HomeTabState extends State<HomeTab> {
                               ),
                             ],
                           ),
-                          child: _aboutUsMap.containsKey('logo') && _aboutUsMap['logo']!.noiDung.isNotEmpty
+                          child: _aboutUsMap.containsKey('logo') &&
+                                  _aboutUsMap['logo']!.noiDung.isNotEmpty
                               ? ClipOval(
                                   child: Image.network(
-                                    Utils.imageUrl(_aboutUsMap['logo']!.noiDung),
+                                    Utils.imageUrl(
+                                        _aboutUsMap['logo']!.noiDung),
                                     width: 100,
                                     height: 100,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => const Icon(
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            const Icon(
                                       Icons.restaurant_menu,
                                       size: 80,
                                       color: AppColors.textWhite,
@@ -536,7 +541,8 @@ class _HomeTabState extends State<HomeTab> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const TakeawayOrderScreen(),
+                                builder: (context) =>
+                                    const TakeawayOrderScreen(),
                               ),
                             );
                           },
@@ -662,7 +668,6 @@ class _HomeTabState extends State<HomeTab> {
 
     final jsonData = openingHoursData.parseJsonContent();
     if (jsonData == null) return const SizedBox();
-
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(24),
@@ -771,20 +776,20 @@ class _HomeTabState extends State<HomeTab> {
           ),
           const SizedBox(height: 24),
           _buildModernOpeningHourRow(
-                  Icons.calendar_today,
-                  'Thứ 2 - Thứ 6',
-                  jsonData['thu2_thu6'] ?? '',
-                  AppColors.primary,
-                ),
-                const SizedBox(height: 16),
-                const Divider(height: 1),
-                const SizedBox(height: 16),
-                _buildModernOpeningHourRow(
-                  Icons.weekend,
-                  'Thứ 7 - Chủ nhật',
-                  jsonData['thu7_cn'] ?? '',
-                  AppColors.accent,
-                ),
+            Icons.calendar_today,
+            'Thứ 2 - Thứ 6',
+            jsonData['thu2_thu6'] ?? '',
+            AppColors.primary,
+          ),
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 16),
+          _buildModernOpeningHourRow(
+            Icons.weekend,
+            'Thứ 7 - Chủ nhật',
+            jsonData['thu7_cn'] ?? '',
+            AppColors.accent,
+          ),
         ],
       ),
     );
@@ -852,7 +857,7 @@ class _HomeTabState extends State<HomeTab> {
             ),
           ),
           const SizedBox(height: 20),
-          ...features.map((feature) =>  Container(
+          ...features.map((feature) => Container(
                 margin: const EdgeInsets.only(bottom: 20),
                 child: _buildModernFeatureCard(
                   icon: feature['icon'] as IconData,

@@ -382,6 +382,25 @@ class TakeawayOrderView(viewsets.ModelViewSet):
             else:
                 send_to_user(order.khach_hang, "Món đã sẵn sàng", f"Đơn hàng #{order.id} của bạn đã sẵn sàng để lấy.")
         if new_status == 'completed':
+            # Tạo hóa đơn
+            from decimal import Decimal
+            chi_tiet_list = order.chitietorder_set.all()
+            tong_tien = sum(Decimal(str(item.gia)) * item.so_luong for item in chi_tiet_list)
+            
+            # Tính phí giao hàng
+            phi_giao_hang = order.calculate_shipping_fee()
+            if phi_giao_hang is None:
+                phi_giao_hang = Decimal('0.00')
+            
+            pm = request.data.get('payment_method')
+            # Tạo hóa đơn
+            HoaDon.objects.create(
+                order=order,
+                tong_tien=tong_tien,
+                phi_giao_hang=phi_giao_hang,
+                payment_method=pm  # Mặc định là tiền mặt, có thể thay đổi sau
+            )
+            
             send_to_user(order.khach_hang, "Đơn hàng hoàn thành", f"Đơn hàng #{order.id} của bạn đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ!")
 
         serializer = self.get_serializer(order)
@@ -700,6 +719,22 @@ class DineInOrderView(viewsets.ModelViewSet):
         
         order.trang_thai = 'completed'
         order.save()
+        
+        # Tạo hóa đơn
+        from decimal import Decimal
+        chi_tiet_list = order.chitietorder_set.all()
+        tong_tien = sum(Decimal(str(item.gia)) * item.so_luong for item in chi_tiet_list)
+        
+        # Tính phí giao hàng (dine-in không có phí giao hàng)
+        phi_giao_hang = Decimal('0.00')
+        
+        # Tạo hóa đơn
+        HoaDon.objects.create(
+            order=order,
+            tong_tien=tong_tien,
+            phi_giao_hang=phi_giao_hang,
+            payment_method='cash'  # Mặc định là tiền mặt, có thể thay đổi sau
+        )
         
         serializer = self.get_serializer(order)
         return Response(serializer.data)

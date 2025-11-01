@@ -105,12 +105,20 @@ class TakeawayService {
   }
 
   /// Cập nhật trạng thái đơn hàng
-  static Future<TakeawayOrder> updateStatus(int orderId, TakeawayOrderStatus status) async {
+  static Future<TakeawayOrder> updateStatus(int orderId, TakeawayOrderStatus status, {String? paymentMethod}) async {
     try {
       final token = await AuthService.getValidToken();
       
       if (token == null) {
         throw Exception('Không có token hợp lệ. Vui lòng đăng nhập lại.');
+      }
+
+      final Map<String, dynamic> body = {
+        'trang_thai': status.value,
+      };
+
+      if (paymentMethod != null && paymentMethod.isNotEmpty) {
+        body['payment_method'] = paymentMethod;
       }
 
       final response = await http.patch(
@@ -119,9 +127,7 @@ class TakeawayService {
           'Content-Type': 'application/json',
           'Authorization': token.authorizationHeader,
         },
-        body: json.encode({
-          'trang_thai': status.value,
-        }),
+        body: json.encode(body),
       ).timeout(const Duration(seconds: timeout));
 
       if (response.statusCode == 200) {

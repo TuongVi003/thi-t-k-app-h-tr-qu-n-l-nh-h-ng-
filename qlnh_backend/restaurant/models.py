@@ -1,5 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+import math
+from decimal import Decimal, InvalidOperation
+from django.core.exceptions import ObjectDoesNotExist
 
 
 
@@ -151,6 +154,72 @@ class Order(models.Model):
             return f'Takeaway Order #{self.id}'
         return f'Order #{self.id} - Bàn {self.ban_an.so_ban if self.ban_an else "N/A"}'
     
+    def get_restaurant_coords(self):
+        """Return (latitude, longitude) for restaurant from AboutUs (keys 'latitude' and 'longitude').
+
+        Returns (float, float) or (None, None) if values are missing or invalid.
+        """
+        try:
+            lat_entry = AboutUs.objects.get(key='latitude')
+            lng_entry = AboutUs.objects.get(key='longitude')
+            lat = lat_entry.noi_dung
+            lng = lng_entry.noi_dung
+            return float(lat), float(lng)
+        except (AboutUs.DoesNotExist, ValueError, TypeError):
+            return None, None
+
+    def calculate_distance_km(self):
+        """Calculate haversine distance (in kilometers) between restaurant coords (AboutUs) and this Order's coords.
+
+        Returns float (km) or None if coordinates are missing/invalid.
+        """
+        if self.latitude is None or self.longitude is None:
+            return None
+
+        rest_lat, rest_lng = self.get_restaurant_coords()
+        if rest_lat is None or rest_lng is None:
+            return None
+
+        # Haversine formula
+        R = 6371.0  # Earth radius in kilometers
+        lat1 = math.radians(float(rest_lat))
+        lon1 = math.radians(float(rest_lng))
+        lat2 = math.radians(float(self.latitude))
+        lon2 = math.radians(float(self.longitude))
+
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        return R * c
+
+    def calculate_shipping_fee(self):
+        """Calculate shipping fee for delivery orders.
+
+        Shipping fee per km is stored in AboutUs with key 'shipping_fee' (in numeric form in `noi_dung`).
+        Returns a Decimal rounded to 2 decimal places, Decimal('0.00') when not applicable, or None if data missing/invalid.
+        """
+        
+        # Only apply when delivery method is "Giao hàng tận nơi"
+        if not self.phuong_thuc_giao_hang or self.phuong_thuc_giao_hang != 'Giao hàng tận nơi':
+            print("Shipping fee not applicable")
+            return Decimal('0.00')
+
+        distance = self.calculate_distance_km()
+        if distance is None:
+            return None
+
+        try:
+            fee_entry = AboutUs.objects.get(key='shipping_fee')
+            fee_per_km = Decimal(str(fee_entry.noi_dung))
+            print(f"Fee per km: {fee_per_km}, Distance: {distance}")
+        except (AboutUs.DoesNotExist, InvalidOperation, TypeError, ValueError):
+            return None
+
+        fee = fee_per_km * Decimal(str(distance))
+        # round to 2 decimal places
+        return fee.quantize(Decimal('0.01'))
+    
 
 class ChiTietOrder(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
@@ -165,6 +234,7 @@ class ChiTietOrder(models.Model):
 class HoaDon(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
     tong_tien = models.DecimalField(max_digits=10, decimal_places=2)
+    phi_giao_hang = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Phí giao hàng (nếu có)")
     ngay_tao = models.DateTimeField(auto_now_add=True)
     payment_method = models.CharField(max_length=50, choices=(('cash', 'Tiền mặt'), ('card', 'Thẻ')))
 
