@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import MonAn , DanhMuc, BanAn, DonHang, NguoiDung, Order, ChiTietOrder, \
-    AboutUs
+    AboutUs, HoaDon, Conversation, ChatMessage 
 
 
 class NguoiDungAdmin(UserAdmin):
@@ -79,6 +79,11 @@ class DonHangAdmin(admin.ModelAdmin):
 
 class OrderAdmin(admin.ModelAdmin):
     list_display = ('khach_hang', 'khach_vang_lai', 'nhan_vien', 'order_time', 'trang_thai', 'thoi_gian_lay', 'thoi_gian_san_sang')
+
+class HoaDonAdmin(admin.ModelAdmin):
+    # show formatted fee for Vietnamese users
+    list_display = ('order', 'tong_tien', 'formatted_phi_giao_hang', 'payment_method', )
+
 
 class AboutUsAdmin(admin.ModelAdmin):
     list_display = ('key', 'noi_dung', 'public', 'content_type')
@@ -184,6 +189,59 @@ class AboutUsAdmin(admin.ModelAdmin):
     class Media:
         js = ('restaurant/admin_aboutus.js',)
 
+class ChatMessageInline(admin.TabularInline):
+    """Inline để hiển thị messages trong Conversation"""
+    model = ChatMessage
+    extra = 0
+    readonly_fields = ('nguoi_goi', 'noi_dung', 'thoi_gian', 'nguoi_goi_display_name')
+    fields = ('nguoi_goi_display_name', 'noi_dung', 'thoi_gian')
+    can_delete = False
+    
+    def nguoi_goi_display_name(self, obj):
+        return obj.nguoi_goi_display() if obj.id else '-'
+    nguoi_goi_display_name.short_description = 'Người gửi'
+
+
+class ConversationAdmin(admin.ModelAdmin):
+    """Admin cho Conversation"""
+    list_display = ('id', 'customer_name', 'is_staff_group', 'message_count', 'last_message_at', 'created_at')
+    list_filter = ('is_staff_group', 'created_at')
+    search_fields = ('customer__ho_ten', 'customer__username', 'customer__so_dien_thoai')
+    readonly_fields = ('created_at', 'last_message_at', 'message_count')
+    inlines = [ChatMessageInline]
+    
+    def customer_name(self, obj):
+        return obj.customer.ho_ten if obj.customer else '-'
+    customer_name.short_description = 'Khách hàng'
+    customer_name.admin_order_field = 'customer__ho_ten'
+    
+    def message_count(self, obj):
+        return obj.messages.count()
+    message_count.short_description = 'Số tin nhắn'
+
+
+class ChatMessageAdmin(admin.ModelAdmin):
+    """Admin cho ChatMessage"""
+    list_display = ('id', 'conversation_id', 'nguoi_goi_display_name', 'noi_dung_preview', 'thoi_gian')
+    list_filter = ('thoi_gian', 'conversation__is_staff_group')
+    search_fields = ('noi_dung', 'nguoi_goi__ho_ten', 'nguoi_goi__username')
+    readonly_fields = ('thoi_gian', 'nguoi_goi_display_name')
+    date_hierarchy = 'thoi_gian'
+    
+    def conversation_id(self, obj):
+        return f"#{obj.conversation.id}" if obj.conversation else '-'
+    conversation_id.short_description = 'Conversation'
+    conversation_id.admin_order_field = 'conversation'
+    
+    def nguoi_goi_display_name(self, obj):
+        return obj.nguoi_goi_display()
+    nguoi_goi_display_name.short_description = 'Người gửi'
+    
+    def noi_dung_preview(self, obj):
+        return obj.noi_dung[:50] + '...' if len(obj.noi_dung) > 50 else obj.noi_dung
+    noi_dung_preview.short_description = 'Nội dung'
+
+
 admin.site.register(NguoiDung, NguoiDungAdmin)
 admin.site.register(MonAn, MonAnAdmin)
 admin.site.register(DanhMuc)
@@ -191,3 +249,6 @@ admin.site.register(BanAn)
 admin.site.register(DonHang, DonHangAdmin)
 admin.site.register(Order, OrderAdmin)
 admin.site.register(AboutUs, AboutUsAdmin)
+admin.site.register(HoaDon, HoaDonAdmin)
+admin.site.register(Conversation, ConversationAdmin)
+admin.site.register(ChatMessage, ChatMessageAdmin)

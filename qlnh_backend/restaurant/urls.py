@@ -2,6 +2,7 @@
 from django.urls import include
 from django.urls import path
 from . import views
+from .chat_views import ConversationViewSet, ChatMessageViewSet
 from rest_framework import routers
 
 
@@ -16,6 +17,10 @@ router.register('categories', views.DanhMucView, basename='category')
 router.register('about-us', views.AboutUsView, basename='about-us')
 router.register('tables-for-reservations', views.UserTableView, basename='tfr')
 router.register('statistics', views.StatisticsView, basename='statistics')
+
+# Chat endpoints
+router.register('conversations', ConversationViewSet, basename='conversation')
+router.register('messages', ChatMessageViewSet, basename='message')
 
 
 urlpatterns = [

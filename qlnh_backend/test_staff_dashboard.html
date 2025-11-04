@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Chat Dashboard - Restaurant</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f3f4f6;
+            height: 100vh;
+            display: flex;
+        }
+        
+        /* Sidebar - Conversation List */
+        .sidebar {
+            width: 350px;
+            background: white;
+            border-right: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-header {
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .sidebar-header h2 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        .status {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .status.connected { color: #4ade80; }
+        .status.disconnected { color: #f87171; }
+        
+        .conversation-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        .conversation-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e5e7eb;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .conversation-item:hover {
+            background: #f9fafb;
+        }
+        .conversation-item.active {
+            background: #ede9fe;
+            border-left: 3px solid #7c3aed;
+        }
+        .conversation-item.new {
+            animation: highlight 1s ease;
+            background: #fef3c7;
+        }
+        @keyframes highlight {
+            0% { background: #fef3c7; }
+            100% { background: white; }
+        }
+        .conv-customer {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 5px;
+        }
+        .conv-last-message {
+            font-size: 14px;
+            color: #6b7280;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .conv-time {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 3px;
+        }
+        
+        /* Main Chat Area */
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #f9fafb;
+        }
+        .chat-header {
+            padding: 20px;
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .chat-header h3 {
+            color: #1f2937;
+            font-size: 18px;
+        }
+        .chat-header .customer-info {
+            color: #6b7280;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .message {
+            margin-bottom: 15px;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message.sent {
+            text-align: right;
+        }
+        .message-bubble {
+            display: inline-block;
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+        }
+        .message.received .message-bubble {
+            background: #e5e7eb;
+            color: #1f2937;
+            border-bottom-left-radius: 4px;
+        }
+        .message.sent .message-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .message-sender {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        .message-time {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+        
+        .input-area {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+        }
+        .input-form {
+            display: flex;
+            gap: 10px;
+        }
+        .input-form input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 25px;
+            font-size: 16px;
+        }
+        .input-form input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .input-form button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .input-form button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #9ca3af;
+        }
+        .empty-state svg {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+        }
+        
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            min-width: 300px;
+        }
+        .login-box h2 {
+            margin-bottom: 20px;
+            color: #1f2937;
+        }
+        .login-box input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+        .login-box button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .badge {
+            display: inline-block;
+            background: #ef4444;
+            color: white;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 5px;
+        }
+        
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <!-- Login Overlay -->
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-box">
+            <h2>🔐 Đăng nhập Staff</h2>
+            <p style="color: #6b7280; margin-bottom: 20px;">Nhập Staff ID để kết nối</p>
+            <input type="number" id="staffId" placeholder="Staff ID (user_id)" />
+            <button onclick="login()">Đăng nhập</button>
+        </div>
+    </div>
+
+    <!-- Sidebar - Conversation List -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>💬 Chat với Khách hàng</h2>
+            <div class="status disconnected" id="status">● Disconnected</div>
+        </div>
+        <div class="conversation-list" id="conversationList">
+            <div class="empty-state">
+                <p>Chưa có cuộc trò chuyện nào</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Chat Area -->
+    <div class="main">
+        <div id="chatEmpty" class="empty-state">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+            </svg>
+            <p>Chọn một cuộc trò chuyện để bắt đầu</p>
+        </div>
+        
+        <div id="chatArea" class="hidden" style="display: flex; flex-direction: column; height: 100%;">
+            <div class="chat-header">
+                <h3 id="chatCustomerName">Khách hàng</h3>
+                <div class="customer-info" id="chatCustomerInfo"></div>
+            </div>
+            <div class="messages" id="messages"></div>
+            <div class="input-area">
+                <div class="input-form">
+                    <input type="text" id="messageInput" placeholder="Nhập tin nhắn..." 
+                           onkeypress="handleKeyPress(event)" />
+                    <button onclick="sendMessage()" id="sendBtn">Gửi</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let currentStaffId = null;
+        let conversations = [];
+        let selectedConversation = null;
+        let messages = {};
+
+        // ⚠️ Thay đổi URL này nếu cần
+        const SOCKET_URL = 'http://localhost:8001';  // Port 8001 cho Socket.IO
+
+        function login() {
+            const staffId = document.getElementById('staffId').value;
+            if (!staffId) {
+                alert('Vui lòng nhập Staff ID');
+                return;
+            }
+            
+            currentStaffId = parseInt(staffId);
+            connectSocket();
+            document.getElementById('loginOverlay').classList.add('hidden');
+        }
+
+        function connectSocket() {
+            socket = io(SOCKET_URL, {
+                auth: { user_id: currentStaffId }
+            });
+            
+            socket.on('connect', () => {
+                console.log('Connected');
+                document.getElementById('status').className = 'status connected';
+                document.getElementById('status').textContent = '● Connected';
+                
+                // Load existing conversations
+                loadConversations();
+            });
+            
+            socket.on('disconnect', () => {
+                console.log('Disconnected');
+                document.getElementById('status').className = 'status disconnected';
+                document.getElementById('status').textContent = '● Disconnected';
+            });
+            
+            socket.on('new_message', (data) => {
+                console.log('New message:', data);
+                handleNewMessage(data);
+            });
+            
+            socket.on('new_conversation', (data) => {
+                console.log('🆕 New conversation:', data);
+                handleNewConversation(data);
+            });
+            
+            socket.on('error', (error) => {
+                console.error('Socket error:', error);
+                alert('Error: ' + error.message);
+            });
+        }
+
+        async function loadConversations() {
+            try {
+                // Trong thực tế, bạn cần gọi REST API với token
+                // Ở đây mình để trống vì demo
+                console.log('Load conversations từ server...');
+                // const response = await fetch('/api/chat/conversations/', {
+                //     headers: { 'Authorization': 'Bearer ' + token }
+                // });
+                // const data = await response.json();
+                // conversations = data;
+                // renderConversations();
+            } catch (error) {
+                console.error('Error loading conversations:', error);
+            }
+        }
+
+        function handleNewConversation(data) {
+            // Thêm conversation mới vào đầu list
+            const conv = {
+                id: data.id,
+                customer_id: data.customer_id,
+                customer_name: data.customer_name,
+                customer_phone: data.customer_phone,
+                created_at: data.created_at,
+                last_message: data.last_message,
+                isNew: true
+            };
+            
+            conversations.unshift(conv);
+            messages[data.id] = []; // Init empty messages
+            renderConversations();
+            
+            // Show notification
+            showNotification(`💬 Khách hàng mới: ${data.customer_name}`);
+        }
+
+        function handleNewMessage(data) {
+            const convId = data.conversation_id;
+            
+            // Add message to list
+            if (!messages[convId]) {
+                messages[convId] = [];
+            }
+            messages[convId].push(data);
+            
+            // Update conversation's last message
+            const conv = conversations.find(c => c.id === convId);
+            if (conv) {
+                conv.last_message = {
+                    noi_dung: data.noi_dung,
+                    thoi_gian: data.thoi_gian
+                };
+                // Move to top
+                conversations = [conv, ...conversations.filter(c => c.id !== convId)];
+                renderConversations();
+            }
+            
+            // If this conversation is selected, show message
+            if (selectedConversation && selectedConversation.id === convId) {
+                addMessageToChat(data, data.nguoi_goi_id === currentStaffId);
+            }
+        }
+
+        function renderConversations() {
+            const listEl = document.getElementById('conversationList');
+            if (conversations.length === 0) {
+                listEl.innerHTML = '<div class="empty-state"><p>Chưa có cuộc trò chuyện nào</p></div>';
+                return;
+            }
+            
+            listEl.innerHTML = conversations.map(conv => `
+                <div class="conversation-item ${conv.isNew ? 'new' : ''} ${selectedConversation && selectedConversation.id === conv.id ? 'active' : ''}" 
+                     onclick="selectConversation(${conv.id})"
+                     data-conv-id="${conv.id}">
+                    <div class="conv-customer">
+                        ${conv.customer_name || `Customer #${conv.customer_id}`}
+                        ${conv.isNew ? '<span class="badge">MỚI</span>' : ''}
+                    </div>
+                    <div class="conv-last-message">
+                        ${conv.last_message ? conv.last_message.noi_dung : 'Chưa có tin nhắn'}
+                    </div>
+                    <div class="conv-time">
+                        ${conv.last_message ? formatTime(conv.last_message.thoi_gian) : formatTime(conv.created_at)}
+                    </div>
+                </div>
+            `).join('');
+            
+            // Remove "new" flag after 3 seconds
+            setTimeout(() => {
+                conversations.forEach(c => c.isNew = false);
+            }, 3000);
+        }
+
+        function selectConversation(convId) {
+            const conv = conversations.find(c => c.id === convId);
+            if (!conv) return;
+            
+            selectedConversation = conv;
+            renderConversations();
+            
+            // Show chat area
+            document.getElementById('chatEmpty').classList.add('hidden');
+            document.getElementById('chatArea').classList.remove('hidden');
+            
+            // Update header
+            document.getElementById('chatCustomerName').textContent = conv.customer_name || `Customer #${conv.customer_id}`;
+            document.getElementById('chatCustomerInfo').textContent = `📞 ${conv.customer_phone || 'N/A'} • ID: ${conv.customer_id}`;
+            
+            // Load and render messages
+            renderMessages(convId);
+        }
+
+        function renderMessages(convId) {
+            const messagesEl = document.getElementById('messages');
+            const convMessages = messages[convId] || [];
+            
+            messagesEl.innerHTML = convMessages.map(msg => {
+                const isSent = msg.nguoi_goi_id === currentStaffId;
+                return `
+                    <div class="message ${isSent ? 'sent' : 'received'}">
+                        ${!isSent ? `<div class="message-sender">${msg.nguoi_goi_name}</div>` : ''}
+                        <div class="message-bubble">
+                            ${msg.noi_dung}
+                            <div class="message-time">${formatTime(msg.thoi_gian)}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function addMessageToChat(data, isSent) {
+            const messagesEl = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+            messageDiv.innerHTML = `
+                ${!isSent ? `<div class="message-sender">${data.nguoi_goi_name}</div>` : ''}
+                <div class="message-bubble">
+                    ${data.noi_dung}
+                    <div class="message-time">${formatTime(data.thoi_gian)}</div>
+                </div>
+            `;
+            messagesEl.appendChild(messageDiv);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function sendMessage() {
+            if (!selectedConversation) {
+                alert('Vui lòng chọn cuộc trò chuyện');
+                return;
+            }
+            
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            socket.emit('send_message', {
+                noi_dung: message,
+                customer_id: selectedConversation.customer_id
+            });
+            
+            input.value = '';
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        function formatTime(isoString) {
+            const date = new Date(isoString);
+            const now = new Date();
+            const diff = now - date;
+            
+            if (diff < 60000) return 'Vừa xong';
+            if (diff < 3600000) return Math.floor(diff / 60000) + ' phút trước';
+            if (diff < 86400000) return Math.floor(diff / 3600000) + ' giờ trước';
+            
+            return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function showNotification(message) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('Restaurant Chat', { body: message });
+            }
+        }
+
+        // Request notification permission
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    </script>
+</body>
+</html>

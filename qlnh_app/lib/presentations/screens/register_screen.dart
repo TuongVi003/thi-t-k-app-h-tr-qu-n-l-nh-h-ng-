@@ -14,6 +14,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _soDienThoaiController = TextEditingController();
   final _hoTenController = TextEditingController();
+  final _emailController = TextEditingController();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -24,6 +25,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _passwordController.dispose();
     _soDienThoaiController.dispose();
     _hoTenController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
@@ -36,12 +38,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final password = _passwordController.text;
     final soDienThoai = _soDienThoaiController.text.trim();
     final hoTen = _hoTenController.text.trim();
+    final email = _emailController.text.trim();
 
     final result = await AuthService.instance.registerWithApi(
       username: username,
       password: password,
       soDienThoai: soDienThoai,
       hoTen: hoTen,
+      email: email,
     );
 
     if (!mounted) return;
@@ -113,6 +117,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   keyboardType: TextInputType.phone,
                   validator: (v) => (v == null || v.isEmpty) ? 'Vui lòng nhập số điện thoại' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: const Icon(Icons.email),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (v) => (v == null || v.isEmpty) ? 'Vui lòng nhập email' : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(

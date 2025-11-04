@@ -76,6 +76,7 @@ class AuthService {
     required String password,
     required String soDienThoai,
     required String hoTen,
+    required String email,
   }) async {
     try {
       final uri = Uri.parse(ApiEndpoints.register);
@@ -85,6 +86,7 @@ class AuthService {
         'password': password,
         'so_dien_thoai': soDienThoai,
         'ho_ten': hoTen,
+        'email': email,
       });
 
       final response = await http.post(

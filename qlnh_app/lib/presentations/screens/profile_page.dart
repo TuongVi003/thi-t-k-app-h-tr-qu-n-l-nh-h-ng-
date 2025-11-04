@@ -1,11 +1,61 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
+import 'user_info_screen.dart';
 import '../../services/auth_service.dart';
+import '../../services/user_service.dart';
+import '../../models/user.dart';
 
 
 // Profile Tab
-class ProfileTab extends StatelessWidget {
+class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
+
+  @override
+  State<ProfileTab> createState() => _ProfileTabState();
+}
+
+class _ProfileTabState extends State<ProfileTab> {
+  User? _currentUser;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    if (!AuthService.instance.isLoggedIn) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final user = await UserService.instance.getCurrentUser();
+      if (mounted) {
+        setState(() {
+          _currentUser = user;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleLoginSuccess() async {
+    await _loadUserProfile();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đăng nhập thành công')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,9 +91,7 @@ class ProfileTab extends StatelessWidget {
                           MaterialPageRoute(builder: (c) => const LoginScreen()),
                         );
                         if (res == true || AuthService.instance.isLoggedIn) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Đăng nhập thành công')),
-                          );
+                          await _handleLoginSuccess();
                         }
                       },
                       child: const Text('Đăng nhập'),
@@ -53,48 +101,68 @@ class ProfileTab extends StatelessWidget {
               ),
             )
           else
-            // Profile info card for logged-in users (simple placeholder)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 30,
-                      backgroundColor: Colors.orange.shade100,
-                      child: Icon(
-                        Icons.person,
-                        size: 30,
-                        color: Colors.orange.shade700,
+            // Profile info card for logged-in users
+            _isLoading
+                ? const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Center(
+                        child: CircularProgressIndicator(),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  )
+                : Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
                         children: [
-                          Text(
-                            'Nguyễn Văn A',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                          CircleAvatar(
+                            radius: 30,
+                            backgroundColor: Colors.orange.shade100,
+                            child: Icon(
+                              Icons.person,
+                              size: 30,
+                              color: Colors.orange.shade700,
                             ),
                           ),
-                          SizedBox(height: 4),
-                          Text(
-                            'nguyenvana@email.com',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _currentUser?.displayName ?? 'Người dùng',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _currentUser?.contactInfo ?? '',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                                if (_currentUser?.soDienThoai.isNotEmpty ?? false)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Text(
+                                      'SĐT: ${_currentUser?.soDienThoai}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
+                  ),
 
           const SizedBox(height: 24),
 
@@ -110,33 +178,23 @@ class ProfileTab extends StatelessWidget {
                     );
                     if (res != true && !AuthService.instance.isLoggedIn) return;
                   }
-                  // TODO: open personal info screen
+                  // Navigate to user info screen
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const UserInfoScreen()),
+                  );
                 }),
-                _buildMenuOption(Icons.location_on_outlined, 'Địa chỉ giao hàng', () async {
-                  if (!AuthService.instance.isLoggedIn) {
-                    final res = await Navigator.push<bool?>(
-                      context,
-                      MaterialPageRoute(builder: (c) => const LoginScreen()),
-                    );
-                    if (res != true && !AuthService.instance.isLoggedIn) return;
-                  }
-                }),
-                _buildMenuOption(Icons.payment, 'Phương thức thanh toán', () async {
-                  if (!AuthService.instance.isLoggedIn) {
-                    final res = await Navigator.push<bool?>(
-                      context,
-                      MaterialPageRoute(builder: (c) => const LoginScreen()),
-                    );
-                    if (res != true && !AuthService.instance.isLoggedIn) return;
-                  }
-                }),
+                
                 _buildMenuOption(Icons.notifications_outlined, 'Thông báo', () {}),
-                _buildMenuOption(Icons.help_outline, 'Hỗ trợ', () {}),
-                _buildMenuOption(Icons.info_outline, 'Về chúng tôi', () {}),
+                // _buildMenuOption(Icons.help_outline, 'Hỗ trợ', () {}),
+                // _buildMenuOption(Icons.info_outline, 'Về chúng tôi', () {}),
                 const Divider(),
                 _buildMenuOption(Icons.logout, 'Đăng xuất', () {
                   if (AuthService.instance.isLoggedIn) {
                     AuthService.instance.logout();
+                    setState(() {
+                      _currentUser = null;
+                    });
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(builder: (_) => const LoginScreen()),

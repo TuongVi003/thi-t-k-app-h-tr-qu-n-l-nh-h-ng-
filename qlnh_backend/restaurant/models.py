@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractUser
 import math
 from decimal import Decimal, InvalidOperation
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils import timezone
 
 
 
@@ -220,6 +221,8 @@ class Order(models.Model):
         # round to 2 decimal places
         return fee.quantize(Decimal('0.01'))
     
+    def __str__(self):
+        return 'Order #{}'.format(self.id)
 
 class ChiTietOrder(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
@@ -237,6 +240,28 @@ class HoaDon(models.Model):
     phi_giao_hang = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Phí giao hàng (nếu có)")
     ngay_tao = models.DateTimeField(auto_now_add=True)
     payment_method = models.CharField(max_length=50, choices=(('cash', 'Tiền mặt'), ('card', 'Thẻ')))
+
+    def formatted_phi_giao_hang(self):
+        """Return phi_giao_hang formatted for Vietnamese locale.
+
+        Example: 15000 -> "15.000 ₫". Returns '-' if amount is missing or invalid.
+        """
+        if self.phi_giao_hang is None:
+            return '-'
+        try:
+            # Round to nearest VND (no decimals) for display
+            amount = float(self.phi_giao_hang)
+        except (TypeError, ValueError):
+            return '-'
+
+        # Convert to integer VND and format with dot as thousands separator
+        amount_int = int(round(amount))
+        formatted = f"{amount_int:,}".replace(',', '.')
+        return f"{formatted} ₫"
+
+    # admin display metadata
+    formatted_phi_giao_hang.short_description = 'Phí giao hàng'
+    formatted_phi_giao_hang.admin_order_field = 'phi_giao_hang'
 
     def __str__(self):
         return f"Hóa đơn #{self.id} - Order #{self.order.id}"
@@ -273,8 +298,63 @@ class AboutUs(models.Model):
         return f"About Us Content - {self.key}"
 
 
+class Conversation(models.Model):
+    # conversation giữa 1 khách hàng và toàn bộ nhân viên (is_staff_group=True)
+    customer = models.ForeignKey(NguoiDung, on_delete=models.CASCADE, null=True, blank=True, related_name='conversations')
+    is_staff_group = models.BooleanField(default=True, help_text="Nếu True => conversation giữa customer và toàn bộ nhân viên")
+    participants = models.ManyToManyField(NguoiDung, blank=True, related_name='custom_conversations',
+                                          help_text="Tùy chọn: thêm participant nếu muốn 1:1 hoặc nhóm đặc biệt")
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_message_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        # giới hạn 1 conversation staff-group cho mỗi customer
+        unique_together = (('customer', 'is_staff_group'),)
+
+    def __str__(self):
+        if self.is_staff_group and self.customer:
+            return f"Conversation (Customer {self.customer.id})"
+        return f"Conversation #{self.id}"
+
+    @classmethod
+    def get_or_create_for_customer(cls, customer):
+        conv, created = cls.objects.get_or_create(customer=customer, is_staff_group=True)
+        return conv
+
+    def update_last_message(self, when=None):
+        self.last_message_at = when or timezone.now()
+        self.save(update_fields=['last_message_at'])
+
+
 class ChatMessage(models.Model):
-    sender = models.ForeignKey(NguoiDung, on_delete=models.CASCADE, related_name='sent_messages')
-    receiver = models.ForeignKey(NguoiDung, on_delete=models.CASCADE, related_name='received_messages')
-    content = models.TextField()
-    timestamp = models.DateTimeField(auto_now_add=True)
+    conversation = models.ForeignKey(Conversation, null=True, blank=True, on_delete=models.CASCADE, related_name='messages')
+    nguoi_goi = models.ForeignKey(NguoiDung, on_delete=models.SET_NULL, null=True, related_name='messages_sent')
+    noi_dung = models.TextField()
+    thoi_gian = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # cập nhật last_message_at của conversation
+        try:
+            self.conversation.update_last_message(self.thoi_gian)
+        except Exception:
+            pass
+
+    def nguoi_goi_display(self):
+        # Nếu nguoi_goi là nhân viên và conversation là staff_group => hiển thị chung "Nhân viên"
+        if self.conversation.is_staff_group and self.nguoi_goi and self.nguoi_goi.loai_nguoi_dung == 'nhan_vien':
+            return "Nhân viên"
+        if self.nguoi_goi:
+            return getattr(self.nguoi_goi, 'ho_ten', str(self.nguoi_goi))
+        return "Không xác định"
+
+    def recipients_qs(self):
+        # trả về queryset NguoiDung là người nhận (dùng cho gửi push)
+        if self.conversation.is_staff_group:
+            return NguoiDung.objects.filter(loai_nguoi_dung='nhan_vien')
+        # nếu không phải staff_group, trả những participants (ngoại trừ nguoi_goi)
+        qs = self.conversation.participants.exclude(pk=self.nguoi_goi.pk) if self.nguoi_goi else self.conversation.participants.all()
+        return qs
+
+    def __str__(self):
+        return f"{self.nguoi_goi_display()} @ {self.thoi_gian}: {self.noi_dung[:30]}"

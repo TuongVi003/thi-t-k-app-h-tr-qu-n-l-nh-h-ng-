@@ -18,13 +18,13 @@ from django.db.models.functions import TruncDate, TruncMonth
 from .utils import send_to_user, format_donhang_status  # import hàm gửi notification
 
 from restaurant.serializer import (BanAnForReservationSerializer, UserSerializer, BanAnSerializer, DonHangSerializer, 
-                                  OrderSerializer, TakeawayOrderCreateSerializer, 
+                                  OrderSerializer, TakeawayOrderCreateSerializer, CustomerUserUpdateSerializer, 
                                   OrderStatusUpdateSerializer, MonAnSerializer, DanhMucSerializer, AboutUsSerializer, HotlineReservationSerializer)
 from .models import DonHang, NguoiDung, BanAn, Order, MonAn, DanhMuc, FCMDevice, ChiTietOrder, AboutUs, HoaDon
 
 
 
-class UserView(viewsets.ViewSet, generics.CreateAPIView):
+class UserView(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIView):
     queryset = NguoiDung.objects.all()
     serializer_class = UserSerializer
     
@@ -35,8 +35,14 @@ class UserView(viewsets.ViewSet, generics.CreateAPIView):
             self.permission_classes = [IsAuthenticated]
         return super().get_permissions()
 
-    @action(detail=False, methods=['get'], url_path='current-user')
+    @action(detail=False, methods=['get', 'patch'], url_path='current-user')
     def get_current_user(self, request):
+        if request.method.__eq__('PATCH'):
+            serializer = CustomerUserUpdateSerializer(request.user, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(status=200, data=serializer.data)
+            return Response(status=400, data=serializer.errors)
         user = request.user     # object NguoiDung
         serializer = self.get_serializer(user)
         return Response(status=200, data=serializer.data)
@@ -310,7 +316,35 @@ class TakeawayOrderView(viewsets.ModelViewSet):
 
         # push notification đến khách hàng
         print(f"Sending order confirmation notification to user {order.khach_hang.id}")
-        send_to_user(order.khach_hang, "Đơn hàng đã được xác nhận", f"Đơn hàng #{order.id} của bạn đã được nhân viên {request.user.ho_ten} xác nhận.")
+        # If this is a delivery order, calculate shipping fee and include it in the notification
+        if order.phuong_thuc_giao_hang == 'Giao hàng tận nơi':
+            try:
+                fee = order.calculate_shipping_fee()
+            except Exception:
+                fee = None
+
+            if fee is None:
+                # Unable to calculate fee
+                send_to_user(
+                    order.khach_hang,
+                    "Đơn hàng đã được xác nhận",
+                    f"Đơn hàng #{order.id} của bạn đã được nhân viên {request.user.ho_ten} xác nhận. Phí giao hàng hiện chưa xác định; nhân viên sẽ cập nhật sau."
+                )
+            else:
+                # Format fee for Vietnamese display: 15.000 ₫
+                try:
+                    fee_int = int(round(float(fee)))
+                    formatted_fee = f"{fee_int:,}".replace(',', '.') + ' ₫'
+                except Exception:
+                    formatted_fee = str(fee)
+
+                send_to_user(
+                    order.khach_hang,
+                    "Đơn hàng đã được xác nhận",
+                    f"Đơn hàng #{order.id} của bạn đã được nhân viên {request.user.ho_ten} xác nhận. Phí giao hàng: {formatted_fee}"
+                )
+        else:
+            send_to_user(order.khach_hang, "Đơn hàng đã được xác nhận", f"Đơn hàng #{order.id} của bạn đã được nhân viên {request.user.ho_ten} xác nhận.")
         
         serializer = self.get_serializer(order)
         return Response(serializer.data)

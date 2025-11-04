@@ -3,6 +3,7 @@ import 'package:qlnh_nhan_vien/screens/table_management_screen.dart';
 import 'package:qlnh_nhan_vien/screens/booking_management_screen.dart';
 import 'package:qlnh_nhan_vien/screens/login_screen.dart';
 import 'package:qlnh_nhan_vien/screens/takeaway_management_screen.dart';
+import 'package:qlnh_nhan_vien/screens/chat_screen.dart';
 import 'package:qlnh_nhan_vien/services/auth_service.dart';
 import 'package:qlnh_nhan_vien/services/takeaway_service.dart';
 import 'package:qlnh_nhan_vien/models/user.dart';
@@ -387,6 +388,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
       body: _screens[_selectedIndex],
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ConversationsListScreen(),
+            ),
+          );
+        },
+        tooltip: 'Chat với khách hàng',
+        child: const Icon(Icons.chat),
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {

@@ -23,6 +23,27 @@ class UserSerializer(ModelSerializer):
         }
 
 
+class CustomerUserUpdateSerializer(ModelSerializer):
+    # allow the user to update password; if provided we must hash it
+    password = serializers.CharField(write_only=True, required=False)
+
+    class Meta:
+        model = NguoiDung
+        exclude = ('dang_lam_viec', 'loai_nguoi_dung', 'chuc_vu', 'ca_lam', 'is_staff', 'is_superuser', 'groups')
+
+    def update(self, instance, validated_data):
+        # If password supplied, hash it and remove from validated_data so super() won't set it directly
+        password = validated_data.pop('password', None)
+        if password:
+            instance.set_password(password)
+        # Let ModelSerializer handle the rest of the fields
+        instance = super().update(instance, validated_data)
+        # If password was set above, ensure instance is saved
+        if password:
+            instance.save()
+        return instance
+
+
 class BanAnSerializer(ModelSerializer):
     status = serializers.SerializerMethodField()
     current_customer = serializers.SerializerMethodField()

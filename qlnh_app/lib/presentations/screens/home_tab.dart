@@ -4,6 +4,7 @@ import '../../models/about_us.dart';
 import '../../services/about_service.dart';
 import '../screens/reservation_screen.dart';
 import '../takeaway/pages/takeaway_order_screen.dart';
+import '../chat/chat_screen.dart';
 import 'package:qlnh_app/constants/utils.dart';
 
 class HomeTab extends StatefulWidget {
@@ -263,7 +264,9 @@ class _HomeTabState extends State<HomeTab> {
       );
     }
 
-    return RefreshIndicator(
+    return Stack(
+      children: [
+        RefreshIndicator(
       onRefresh: _loadAboutUsData,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -586,6 +589,28 @@ class _HomeTabState extends State<HomeTab> {
           ],
         ),
       ),
+    ),
+        // Floating Action Button for Chat
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: FloatingActionButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ChatScreen(),
+                ),
+              );
+            },
+            backgroundColor: AppColors.primary,
+            child: const Icon(
+              Icons.chat_bubble,
+              color: AppColors.textWhite,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
