@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qlnh_app/services/auth_service.dart';
 import 'login_screen.dart';
 import 'reservation_screen.dart';
 import '../../constants/app_colors.dart';
@@ -65,6 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
+                AuthService.instance.logout();
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(

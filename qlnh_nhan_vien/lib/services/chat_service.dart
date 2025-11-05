@@ -15,6 +15,8 @@ class ChatService {
   
   // Callbacks
   Function(ChatMessage)? onNewMessage;
+  // New callback: provides optional conversation payload from server when available
+  Function(ChatMessage, Map<String, dynamic>?)? onNewMessageWithConversation;
   Function(Conversation)? onNewConversation;  // Thêm callback cho conversation mới
   Function(Map<String, dynamic>)? onUserTyping;
   Function(String)? onError;
@@ -65,7 +67,20 @@ class ChatService {
         print('[ChatService] 📩 New message: $data');
         try {
           final message = ChatMessage.fromJson(data);
+          // Call legacy callback
           onNewMessage?.call(message);
+          // If server provided conversation payload inside the message, forward it
+          Map<String, dynamic>? convPayload;
+          try {
+            if (data is Map && data.containsKey('conversation')) {
+              final raw = data['conversation'];
+              if (raw is Map<String, dynamic>) convPayload = raw;
+            }
+          } catch (_) {
+            convPayload = null;
+          }
+
+          onNewMessageWithConversation?.call(message, convPayload);
         } catch (e) {
           print('[ChatService] ⚠️ Error parsing message: $e');
         }

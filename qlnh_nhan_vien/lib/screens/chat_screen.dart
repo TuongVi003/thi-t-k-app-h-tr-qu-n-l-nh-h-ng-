@@ -33,6 +33,8 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
         
         // Lắng nghe tin nhắn mới
         _chatService.onNewMessage = _onNewMessage;
+        // Lắng nghe tin nhắn có kèm conversation payload (realtime update)
+        _chatService.onNewMessageWithConversation = _onNewMessageWithConversation;
         
         // Lắng nghe conversation mới
         _chatService.onNewConversation = _onNewConversation;
@@ -97,6 +99,92 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
         _conversations.removeAt(index);
         _conversations.insert(0, updatedConv);
       }
+    });
+  }
+
+  /// Handler for new_message that includes optional conversation payload
+  void _onNewMessageWithConversation(ChatMessage message, Map<String, dynamic>? convData) {
+    // Prefer using server-provided conversation payload to update/insert conversation
+    setState(() {
+      final convId = message.conversationId;
+      final index = _conversations.indexWhere((c) => c.id == convId);
+
+      // If conversation exists, update it (but avoid duplicate message)
+      if (index != -1) {
+        final currentLastMessage = _conversations[index].lastMessage;
+        if (currentLastMessage != null && currentLastMessage.id == message.id) {
+          print('[ConversationsListScreen] ⚠️ Duplicate message ignored: ID ${message.id}');
+          return;
+        }
+
+        final updatedConv = Conversation(
+          id: _conversations[index].id,
+          customerId: _conversations[index].customerId,
+          customerInfo: _conversations[index].customerInfo,
+          isStaffGroup: _conversations[index].isStaffGroup,
+          createdAt: _conversations[index].createdAt,
+          lastMessageAt: message.thoiGian,
+          lastMessage: message,
+          unreadCount: _conversations[index].unreadCount + 1,
+        );
+
+        _conversations.removeAt(index);
+        _conversations.insert(0, updatedConv);
+        return;
+      }
+
+      // If conversation not found, try to build from convData (if provided)
+      if (convData != null) {
+        try {
+          final newConvId = convData['id'] ?? convId;
+          final customerId = convData['customer_id'];
+          final customerName = convData['customer_name'] ?? '';
+          final createdAt = convData['created_at'] != null
+              ? DateTime.parse(convData['created_at'])
+              : message.thoiGian;
+          final lastMessageAt = convData['last_message_at'] != null
+              ? DateTime.parse(convData['last_message_at'])
+              : message.thoiGian;
+
+          final customerInfo = customerId != null
+              ? CustomerInfo(
+                  id: customerId,
+                  username: '',
+                  hoTen: customerName,
+                  loaiNguoiDung: 'khach_hang',
+                )
+              : null;
+
+          final newConv = Conversation(
+            id: newConvId,
+            customerId: customerId,
+            customerInfo: customerInfo,
+            isStaffGroup: true,
+            createdAt: createdAt,
+            lastMessageAt: lastMessageAt,
+            lastMessage: message,
+            unreadCount: 1,
+          );
+
+          _conversations.insert(0, newConv);
+          return;
+        } catch (e) {
+          print('[ConversationsListScreen] ⚠️ Failed to build conversation from payload: $e');
+        }
+      }
+
+      // Fallback: create minimal conversation using available message data
+      final fallbackConv = Conversation(
+        id: convId ?? -1,
+        customerId: null,
+        customerInfo: null,
+        isStaffGroup: true,
+        createdAt: message.thoiGian,
+        lastMessageAt: message.thoiGian,
+        lastMessage: message,
+        unreadCount: 1,
+      );
+      _conversations.insert(0, fallbackConv);
     });
   }
 
@@ -191,6 +279,7 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
         itemCount: _conversations.length,
         itemBuilder: (context, index) {
           final conversation = _conversations[index];
+          print('[ConversationsListScreen] Building conversation card for ID ${conversation.toJson()}');
           return _buildConversationCard(conversation);
         },
       ),
@@ -198,7 +287,8 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
   }
 
   Widget _buildConversationCard(Conversation conversation) {
-    final customerName = conversation.customerInfo?.hoTen ?? 'Khách hàng';
+    print('[ConversationsListScreen] Building conversation card for ID ${conversation.customerInfo?.toJson()}');
+    final customerName = conversation.lastMessage?.nguoiGoiName ?? 'Khách hàng';
     final lastMessage = conversation.lastMessage?.noiDung ?? 'Chưa có tin nhắn';
     final lastMessageTime = conversation.lastMessageAt;
     

@@ -88,11 +88,15 @@ def send_message(sid, data):
     """
     try:
         user_id = connected_users.get(sid)
+        print(f"[DEBUG] send_message - SID: {sid}, user_id from connected_users: {user_id}")
+        print(f"[DEBUG] All connected_users: {connected_users}")
+        
         if not user_id:
             sio.emit('error', {'message': 'Unauthorized'}, room=sid)
             return
         
         sender = NguoiDung.objects.get(id=user_id)
+        print(f"[DEBUG] Sender: {sender.id} - {sender.ho_ten} ({sender.loai_nguoi_dung})")
         noi_dung = data.get('noi_dung', '').strip()
         
         if not noi_dung:
@@ -103,6 +107,7 @@ def send_message(sid, data):
         if sender.loai_nguoi_dung == 'khach_hang':
             # Khách hàng gửi -> conversation của chính họ
             conv = Conversation.get_or_create_for_customer(sender)
+            print(f"[DEBUG] Customer {sender.id} -> Conversation {conv.id} (customer_id: {conv.customer_id})")
             target_room = 'staff_room'  # Gửi tới tất cả staff
             
         elif sender.loai_nguoi_dung == 'nhan_vien':
@@ -126,6 +131,7 @@ def send_message(sid, data):
             nguoi_goi=sender,
             noi_dung=noi_dung
         )
+        print(f"[DEBUG] Created message {message.id}: conversation_id={message.conversation_id}, nguoi_goi_id={message.nguoi_goi_id}")
         
         # Prepare response data
         message_data = {
@@ -135,6 +141,14 @@ def send_message(sid, data):
             'nguoi_goi_name': message.nguoi_goi_display(),
             'noi_dung': message.noi_dung,
             'thoi_gian': message.thoi_gian.isoformat(),
+            # Thông tin conversation để update UI
+            'conversation': {
+                'id': conv.id,
+                'customer_id': conv.customer_id,
+                'customer_name': conv.customer.ho_ten if conv.customer else None,
+                'customer_phone': conv.customer.so_dien_thoai if conv.customer else None,
+                'last_message_at': conv.last_message_at.isoformat() if conv.last_message_at else None,
+            }
         }
         
         # Broadcast tin nhắn
@@ -163,8 +177,8 @@ def send_message(sid, data):
                 sio.emit('new_conversation', conversation_data, room='staff_room')
                 print(f"[NEW CONVERSATION] Customer {sender.id} created new conversation #{conv.id}")
             
-            # Gửi push notification tới staff (optional, nếu dùng FCM)
-            # send_push_to_staff(message)
+            # Gửi push notification tới staff
+            send_push_to_staff(message)
             
         else:  # staff
             # Gửi tới room của customer và staff_room (để staff khác cũng thấy)
@@ -172,8 +186,8 @@ def send_message(sid, data):
             sio.emit('new_message', message_data, room='staff_room')
             print(f"[MESSAGE] Staff {sender.id} -> {target_room}")
             
-            # Gửi push notification tới customer (optional)
-            # send_push_to_customer(message, customer)
+            # Gửi push notification tới customer
+            send_push_to_customer(message, customer)
         
     except NguoiDung.DoesNotExist:
         sio.emit('error', {'message': 'Người dùng không tồn tại'}, room=sid)
@@ -244,13 +258,49 @@ def typing(sid, data):
         print(f"[ERROR] typing: {e}")
 
 
-# Helper functions cho push notifications (optional - implement nếu cần)
+# Helper functions cho push notifications
 def send_push_to_staff(message):
     """Gửi push notification tới tất cả staff devices"""
-    # Implement FCM push logic here
-    pass
+    from restaurant.utils import send_to_user
+    
+    try:
+        # Lấy tất cả nhân viên
+        staff_users = NguoiDung.objects.filter(loai_nguoi_dung='nhan_vien')
+        
+        for staff in staff_users:
+            send_to_user(
+                user=staff,
+                title=f"💬 Tin nhắn mới từ {message.nguoi_goi.ho_ten}",
+                body=message.noi_dung[:100],  # Giới hạn 100 ký tự
+                data={
+                    'type': 'chat',
+                    'message_id': str(message.id),
+                    'conversation_id': str(message.conversation.id),
+                    'customer_id': str(message.conversation.customer_id),
+                    'customer_name': message.conversation.customer.ho_ten if message.conversation.customer else '',
+                }
+            )
+        print(f"[PUSH] Sent notification to {staff_users.count()} staff members")
+    except Exception as e:
+        print(f"[PUSH ERROR] Failed to send to staff: {e}")
+
 
 def send_push_to_customer(message, customer):
     """Gửi push notification tới customer"""
-    # Implement FCM push logic here
-    pass
+    from restaurant.utils import send_to_user
+    
+    try:
+        send_to_user(
+            user=customer,
+            title="💬 Nhân viên đã trả lời",
+            body=message.noi_dung[:100],  # Giới hạn 100 ký tự
+            data={
+                'type': 'chat',
+                'message_id': str(message.id),
+                'conversation_id': str(message.conversation.id),
+                'staff_id': str(message.nguoi_goi_id),
+            }
+        )
+        print(f"[PUSH] Sent notification to customer {customer.id}")
+    except Exception as e:
+        print(f"[PUSH ERROR] Failed to send to customer {customer.id}: {e}")

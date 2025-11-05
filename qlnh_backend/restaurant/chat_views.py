@@ -100,6 +100,7 @@ class ConversationViewSet(viewsets.ReadOnlyModelViewSet):
         """
         conversation = self.get_object()
         user = request.user
+        print("Sending message:", user.id)
         noi_dung = request.data.get('noi_dung', '').strip()
         
         if not noi_dung:

@@ -37,6 +37,19 @@ class Conversation {
       unreadCount: json['unread_count'] ?? 0,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'customer': customerId,
+      'customer_info': customerInfo?.toJson(),
+      'is_staff_group': isStaffGroup,
+      'created_at': createdAt.toIso8601String(),
+      'last_message_at': lastMessageAt?.toIso8601String(),
+      'last_message': lastMessage?.toJson(),
+      'unread_count': unreadCount,
+    };
+  }
 }
 
 class CustomerInfo {
@@ -62,6 +75,16 @@ class CustomerInfo {
       loaiNguoiDung: json['loai_nguoi_dung'],
       chucVu: json['chuc_vu'],
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'username': username,
+      'ho_ten': hoTen,
+      'loai_nguoi_dung': loaiNguoiDung,
+      'chuc_vu': chucVu,
+    };
   }
 }
 

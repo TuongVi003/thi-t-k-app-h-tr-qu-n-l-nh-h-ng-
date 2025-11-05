@@ -83,7 +83,14 @@ class ChatService {
   "nguoi_goi_id": 123,
   "nguoi_goi_name": "Nguyễn Văn A",
   "noi_dung": "Xin chào",
-  "thoi_gian": "2025-11-03T10:30:00Z"
+  "thoi_gian": "2025-11-03T10:30:00Z",
+  "conversation": {
+    "id": 5,
+    "customer_id": 123,
+    "customer_name": "Nguyễn Văn A",
+    "customer_phone": "0901234567",
+    "last_message_at": "2025-11-03T10:30:00Z"
+  }
 }
 ```
 
@@ -101,14 +108,29 @@ void handleNewMessage(dynamic data) {
     thoiGian: DateTime.parse(data['thoi_gian']),
   );
   
-  // 1. Thêm message vào conversation
-  addMessageToConversation(message.conversationId, message);
+  // Thông tin conversation để update list
+  final conversationData = data['conversation'];
   
-  // 2. Update last_message của conversation
-  updateConversationLastMessage(message.conversationId, message);
+  // 1. Thêm message vào conversation (nếu đang mở chat detail)
+  if (messages.containsKey(message.conversationId)) {
+    messages[message.conversationId]!.add(message);
+  }
   
-  // 3. Di chuyển conversation lên đầu list
-  moveConversationToTop(message.conversationId);
+  // 2. Update last_message và last_message_at của conversation trong list
+  final convIndex = conversations.indexWhere((c) => c.id == message.conversationId);
+  if (convIndex != -1) {
+    // Update last message
+    conversations[convIndex].lastMessage = message;
+    conversations[convIndex].lastMessageAt = message.thoiGian;
+    
+    // 3. Di chuyển conversation lên đầu list
+    final conv = conversations.removeAt(convIndex);
+    conversations.insert(0, conv);
+  } else {
+    // Conversation chưa có trong list (case hiếm gặp)
+    // Có thể fetch lại conversation list hoặc tạo conversation mới
+    print('⚠️ Conversation ${message.conversationId} not found in list');
+  }
   
   // 4. Hiển thị notification nếu app ở background
   if (!isAppInForeground) {
@@ -380,22 +402,41 @@ class ChatService extends ChangeNotifier {
   void _handleNewMessage(dynamic data) {
     final message = ChatMessage.fromJson(data);
     
-    // Add to messages list
+    // Add to messages list (nếu đang mở chat detail của conversation này)
     if (!messages.containsKey(message.conversationId)) {
       messages[message.conversationId] = [];
     }
     messages[message.conversationId]!.add(message);
     
-    // Update conversation's last message
+    // Update conversation's last message trong danh sách
     final convIndex = conversations.indexWhere((c) => c.id == message.conversationId);
     if (convIndex != -1) {
+      // Update last message và timestamp
       conversations[convIndex].lastMessage = message;
       conversations[convIndex].lastMessageAt = message.thoiGian;
       
-      // Move to top
+      // Di chuyển conversation này lên đầu danh sách (sort by last_message_at)
       final conv = conversations.removeAt(convIndex);
       conversations.insert(0, conv);
+    } else {
+      // Trường hợp conversation chưa có trong list (staff app có thể gặp)
+      // Có thể tạo conversation object mới từ data['conversation']
+      if (data.containsKey('conversation')) {
+        final convData = data['conversation'];
+        final newConv = Conversation(
+          id: convData['id'],
+          customerId: convData['customer_id'],
+          customerName: convData['customer_name'] ?? 'Unknown',
+          customerPhone: convData['customer_phone'],
+          lastMessage: message,
+          lastMessageAt: message.thoiGian,
+        );
+        conversations.insert(0, newConv);
+      }
     }
+    
+    // Show notification
+    _showNotification(message.nguoiGoiName, message.noiDung);
     
     notifyListeners();
   }
@@ -699,13 +740,152 @@ socket!.onAny((event, data) {
 
 ---
 
+## � Push Notifications (FCM)
+
+Hệ thống tự động gửi push notification khi có tin nhắn mới:
+
+### Customer gửi tin → Staff nhận notification:
+```json
+{
+  "title": "💬 Tin nhắn mới từ Nguyễn Văn A",
+  "body": "Xin chào, tôi muốn đặt bàn...",
+  "data": {
+    "type": "chat",
+    "message_id": "25",
+    "conversation_id": "5",
+    "customer_id": "123",
+    "customer_name": "Nguyễn Văn A"
+  }
+}
+```
+
+### Staff trả lời → Customer nhận notification:
+```json
+{
+  "title": "💬 Nhân viên đã trả lời",
+  "body": "Dạ, chúng tôi sẽ hỗ trợ bạn ngay...",
+  "data": {
+    "type": "chat",
+    "message_id": "26",
+    "conversation_id": "5",
+    "staff_id": "7"
+  }
+}
+```
+
+### Flutter Handler cho Push Notification:
+
+```dart
+// Lắng nghe FCM notifications
+FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+  print('📬 Received FCM: ${message.notification?.title}');
+  
+  if (message.data['type'] == 'chat') {
+    // Navigate to chat screen hoặc update UI
+    final conversationId = int.parse(message.data['conversation_id']);
+    
+    // Option 1: Show in-app notification
+    showInAppNotification(
+      title: message.notification?.title ?? '',
+      body: message.notification?.body ?? '',
+      onTap: () {
+        navigateToChatScreen(conversationId);
+      },
+    );
+    
+    // Option 2: Auto fetch messages nếu đang ở conversation đó
+    if (currentConversationId == conversationId) {
+      fetchLatestMessages(conversationId);
+    }
+  }
+});
+
+// Handle notification khi app ở background và user tap
+FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+  if (message.data['type'] == 'chat') {
+    final conversationId = int.parse(message.data['conversation_id']);
+    navigateToChatScreen(conversationId);
+  }
+});
+```
+
+### Server Implementation:
+
+Hệ thống sử dụng `send_to_user()` từ `restaurant.utils`:
+
+```python
+# Khi customer gửi tin
+send_push_to_staff(message)  # Gửi tới TẤT CẢ nhân viên
+
+# Khi staff trả lời
+send_push_to_customer(message, customer)  # Gửi tới customer cụ thể
+```
+
+**Lưu ý:**
+- ✅ Push notification chỉ gửi khi có tin nhắn MỚI
+- ✅ Staff nhận notification từ TẤT CẢ customers
+- ✅ Customer chỉ nhận notification từ staff
+- ✅ Notification bao gồm message preview (100 ký tự đầu)
+- ✅ Data payload chứa đủ thông tin để navigate
+
+---
+
+## �🔄 Real-time Conversation List Update
+
+Khi nhận event `new_message`, Flutter app cần:
+
+1. **Thêm message** vào messages list (nếu đang mở chat detail)
+2. **Update last_message** của conversation tương ứng
+3. **Update last_message_at** timestamp
+4. **Di chuyển conversation lên đầu** danh sách (sort by recency)
+5. **Increment unread count** (nếu có implement)
+6. **Trigger UI rebuild** để hiển thị thay đổi
+
+### Logic Sorting Conversations:
+
+```dart
+// Sort conversations by last_message_at (mới nhất trên cùng)
+conversations.sort((a, b) {
+  if (a.lastMessageAt == null) return 1;
+  if (b.lastMessageAt == null) return -1;
+  return b.lastMessageAt!.compareTo(a.lastMessageAt!);
+});
+```
+
+### Example: Update Conversation List
+
+```dart
+void updateConversationWithNewMessage(ChatMessage message, dynamic conversationData) {
+  final convIndex = conversations.indexWhere((c) => c.id == message.conversationId);
+  
+  if (convIndex != -1) {
+    // Conversation đã tồn tại -> update
+    conversations[convIndex].lastMessage = message;
+    conversations[convIndex].lastMessageAt = message.thoiGian;
+    
+    // Move to top
+    final conv = conversations.removeAt(convIndex);
+    conversations.insert(0, conv);
+  } else {
+    // Conversation chưa có -> tạo mới (dùng data từ event)
+    final newConv = Conversation.fromJson(conversationData);
+    newConv.lastMessage = message;
+    conversations.insert(0, newConv);
+  }
+  
+  notifyListeners();
+}
+```
+
+---
+
 **Tóm tắt Events:**
 
-| Event | Direction | Customer | Staff | Payload |
-|-------|-----------|----------|-------|---------|
-| `new_message` | Server → Client | ✅ | ✅ | message data |
-| `new_conversation` | Server → Client | ❌ | ✅ | conversation data |
-| `user_typing` | Server → Client | ✅ | ✅ | typing status |
-| `error` | Server → Client | ✅ | ✅ | error message |
-| `send_message` | Client → Server | ✅ | ✅ | {noi_dung, customer_id?} |
-| `typing` | Client → Server | ✅ | ✅ | {is_typing, customer_id?} |
+| Event | Direction | Customer | Staff | Payload | Purpose |
+|-------|-----------|----------|-------|---------|---------|
+| `new_message` | Server → Client | ✅ | ✅ | message + conversation data | Update chat & conversation list |
+| `new_conversation` | Server → Client | ❌ | ✅ | conversation data | Add new conversation to staff list |
+| `user_typing` | Server → Client | ✅ | ✅ | typing status | Show "đang gõ..." indicator |
+| `error` | Server → Client | ✅ | ✅ | error message | Show error to user |
+| `send_message` | Client → Server | ✅ | ✅ | {noi_dung, customer_id?} | Send new message |
+| `typing` | Client → Server | ✅ | ✅ | {is_typing, customer_id?} | Notify others of typing |
