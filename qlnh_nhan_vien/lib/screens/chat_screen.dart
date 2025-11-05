@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:qlnh_nhan_vien/models/chat_models.dart';
 import 'package:qlnh_nhan_vien/services/chat_service.dart';
@@ -403,11 +404,21 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   bool _isLoading = true;
   bool _isSending = false;
   int? _currentUserId;
+  
+  // Typing indicator state
+  bool _isOtherUserTyping = false;
+  String? _typingUserName;
+  
+  // Typing timer
+  Timer? _typingTimer;
 
   @override
   void initState() {
     super.initState();
     _initializeChat();
+    
+    // Listen to text changes to emit typing events
+    _messageController.addListener(_onTextChanged);
   }
 
   Future<void> _initializeChat() async {
@@ -423,6 +434,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
       // Lắng nghe tin nhắn mới
       _chatService.onNewMessage = _onNewMessage;
+      
+      // Lắng nghe sự kiện typing
+      _chatService.onUserTyping = _onUserTyping;
 
       // Load messages
       await _loadMessages();
@@ -486,6 +500,45 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             curve: Curves.easeOut,
           );
         }
+      });
+    }
+  }
+
+  void _onUserTyping(Map<String, dynamic> data) {
+    // Chỉ hiển thị typing indicator nếu là customer của conversation này đang gõ
+    final typingUserId = data['user_id'];
+    final isTyping = data['is_typing'] ?? false;
+    final userName = data['user_name'] ?? 'Khách hàng';
+    
+    // Chỉ hiển thị nếu không phải là mình và là user của conversation này
+    if (typingUserId != _currentUserId && 
+        typingUserId == widget.conversation.customerId) {
+      setState(() {
+        _isOtherUserTyping = isTyping;
+        _typingUserName = isTyping ? userName : null;
+      });
+    }
+  }
+
+  void _onTextChanged() {
+    final text = _messageController.text.trim();
+    
+    if (text.isNotEmpty) {
+      // User is typing, emit typing = true
+      _chatService.sendTyping(
+        isTyping: true,
+        customerId: widget.conversation.customerId,
+      );
+      
+      // Cancel previous timer
+      _typingTimer?.cancel();
+      
+      // Set new timer to emit typing = false after 1 second of inactivity
+      _typingTimer = Timer(const Duration(seconds: 1), () {
+        _chatService.sendTyping(
+          isTyping: false,
+          customerId: widget.conversation.customerId,
+        );
       });
     }
   }
@@ -577,6 +630,27 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         },
                       ),
           ),
+          
+          // Typing indicator
+          if (_isOtherUserTyping)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              alignment: Alignment.centerLeft,
+              child: Row(
+                children: [
+                  Text(
+                    '$_typingUserName đang gõ',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildTypingAnimation(),
+                ],
+              ),
+            ),
           
           // Input area
           Container(
@@ -685,8 +759,49 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
+  Widget _buildTypingAnimation() {
+    return SizedBox(
+      width: 40,
+      height: 20,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: List.generate(3, (index) {
+          return TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 600),
+            builder: (context, value, child) {
+              final animationValue = (value + (index * 0.33)) % 1.0;
+              final opacity = (animationValue < 0.5 
+                  ? animationValue * 2 
+                  : (1.0 - animationValue) * 2);
+              
+              return Opacity(
+                opacity: opacity.clamp(0.3, 1.0),
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    color: Color.fromARGB(255, 13, 71, 161),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              );
+            },
+            onEnd: () {
+              if (mounted && _isOtherUserTyping) {
+                setState(() {}); // Trigger rebuild to restart animation
+              }
+            },
+          );
+        }),
+      ),
+    );
+  }
+
   @override
   void dispose() {
+    _typingTimer?.cancel();
+    _messageController.removeListener(_onTextChanged);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();

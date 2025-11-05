@@ -21,7 +21,8 @@ class ChatService {
   Function(Conversation)? onNewConversation;
   Function(String)? onError;
   Function(bool)? onConnectionChange;
-  Function(Map<String, dynamic>)? onTyping;
+  /// Typing event: userId, userName, isTyping
+  Function(int userId, String userName, bool isTyping)? onTyping;
 
   bool get isConnected => _socket?.connected ?? false;
   Conversation? get currentConversation => _currentConversation;
@@ -128,7 +129,16 @@ class ChatService {
     // Người dùng đang gõ
     _socket!.on('user_typing', (data) {
       print('[ChatService] User typing: $data');
-      onTyping?.call(data);
+      try {
+        if (data is Map<String, dynamic>) {
+          final int userId = data['user_id'] is int ? data['user_id'] : int.tryParse('${data['user_id']}') ?? 0;
+          final String userName = data['user_name'] ?? data['ho_ten'] ?? 'Người dùng';
+          final bool isTyping = data['is_typing'] == true;
+          onTyping?.call(userId, userName, isTyping);
+        }
+      } catch (e) {
+        print('[ChatService] Error parsing user_typing: $e');
+      }
     });
 
     // Nhận lỗi từ server

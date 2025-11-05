@@ -27,6 +27,11 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isSending = false;
   String? _errorMessage;
   Timer? _typingTimer;
+  
+  // Typing indicator state
+  bool _otherUserTyping = false;
+  String _typingUserName = '';
+  Timer? _typingIndicatorTimer;
 
   @override
   void initState() {
@@ -56,6 +61,7 @@ class _ChatScreenState extends State<ChatScreen> {
       _chatService.onNewMessage = _handleNewMessage;
       _chatService.onError = _handleError;
       _chatService.onConnectionChange = _handleConnectionChange;
+      _chatService.onTyping = _handleTyping;
 
       // Lấy conversation
       _conversation = await _chatService.getMyConversation();
@@ -127,6 +133,30 @@ class _ChatScreenState extends State<ChatScreen> {
           duration: Duration(seconds: 2),
         ),
       );
+    }
+  }
+
+  void _handleTyping(int userId, String userName, bool isTyping) {
+    if (!mounted) return;
+    
+    // Ignore typing events from current user
+    if (userId == _currentUser?.id) return;
+    
+    setState(() {
+      _otherUserTyping = isTyping;
+      _typingUserName = userName;
+    });
+    
+    // Auto-hide typing indicator after 3 seconds
+    _typingIndicatorTimer?.cancel();
+    if (isTyping) {
+      _typingIndicatorTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) {
+          setState(() {
+            _otherUserTyping = false;
+          });
+        }
+      });
     }
   }
 
@@ -204,6 +234,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _messageController.dispose();
     _scrollController.dispose();
     _typingTimer?.cancel();
+    _typingIndicatorTimer?.cancel();
     // Clear callbacks and disconnect when leaving the screen to free resources
     _chatService.clearCallbacks();
     _chatService.disconnect();
@@ -299,6 +330,26 @@ class _ChatScreenState extends State<ChatScreen> {
                               },
                             ),
                     ),
+
+                    // Typing indicator
+                    if (_otherUserTyping)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        child: Row(
+                          children: [
+                            Text(
+                              '$_typingUserName đang soạn tin nhắn',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildTypingAnimation(),
+                          ],
+                        ),
+                      ),
 
                     // Input area
                     Container(
@@ -490,5 +541,44 @@ class _ChatScreenState extends State<ChatScreen> {
     } else {
       return '${time.day}/${time.month}/${time.year} ${time.hour}:${time.minute.toString().padLeft(2, '0')}';
     }
+  }
+
+  Widget _buildTypingAnimation() {
+    return SizedBox(
+      width: 40,
+      height: 20,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: List.generate(3, (index) {
+          return TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: Duration(milliseconds: 600),
+            builder: (context, value, child) {
+              final animationValue = (value + (index * 0.33)) % 1.0;
+              final opacity = (animationValue < 0.5 
+                  ? animationValue * 2 
+                  : (1.0 - animationValue) * 2);
+              
+              return Opacity(
+                opacity: opacity.clamp(0.3, 1.0),
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              );
+            },
+            onEnd: () {
+              if (mounted && _otherUserTyping) {
+                setState(() {}); // Trigger rebuild to restart animation
+              }
+            },
+          );
+        }),
+      ),
+    );
   }
 }
