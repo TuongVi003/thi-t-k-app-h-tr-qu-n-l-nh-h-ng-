@@ -1,7 +1,14 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import MonAn , DanhMuc, BanAn, DonHang, NguoiDung, Order, ChiTietOrder, \
-    AboutUs, HoaDon, Conversation, ChatMessage 
+    AboutUs, HoaDon, Conversation, ChatMessage, NguyenLieu, KhachVangLai
+from django.urls import path
+from django.shortcuts import render
+from django.db.models import Sum, Count, Avg, Q, F
+from django.db.models.functions import TruncDate, TruncMonth
+from django.utils import timezone
+from datetime import timedelta
+from decimal import Decimal
 
 
 class NguoiDungAdmin(UserAdmin):
@@ -242,6 +249,248 @@ class ChatMessageAdmin(admin.ModelAdmin):
     noi_dung_preview.short_description = 'Nội dung'
 
 
+
+class StatisticsAdminSite(admin.AdminSite):
+    """Custom Admin Site với trang thống kê"""
+    
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('statistics/', self.admin_view(self.statistics_view), name='statistics'),
+        ]
+        return custom_urls + urls
+    
+    def statistics_view(self, request):
+        """View hiển thị trang thống kê tổng quan"""
+        
+        # Thời gian
+        today = timezone.now()
+        last_30_days = today - timedelta(days=30)
+        last_7_days = today - timedelta(days=7)
+        
+        # === THỐNG KÊ DOANH THU ===
+        total_revenue = HoaDon.objects.aggregate(total=Sum('tong_tien'))['total'] or Decimal('0')
+        revenue_today = HoaDon.objects.filter(ngay_tao__date=today.date()).aggregate(total=Sum('tong_tien'))['total'] or Decimal('0')
+        revenue_30days = HoaDon.objects.filter(ngay_tao__gte=last_30_days).aggregate(total=Sum('tong_tien'))['total'] or Decimal('0')
+        
+        # Doanh thu theo ngày (30 ngày gần nhất)
+        revenue_by_day = HoaDon.objects.filter(ngay_tao__gte=last_30_days)\
+            .annotate(date=TruncDate('ngay_tao'))\
+            .values('date')\
+            .annotate(total=Sum('tong_tien'))\
+            .order_by('date')
+        
+        # Doanh thu theo tháng (12 tháng gần nhất)
+        last_12_months = today - timedelta(days=365)
+        revenue_by_month = HoaDon.objects.filter(ngay_tao__gte=last_12_months)\
+            .annotate(month=TruncMonth('ngay_tao'))\
+            .values('month')\
+            .annotate(total=Sum('tong_tien'))\
+            .order_by('month')
+        
+        # Phí giao hàng
+        total_shipping_fee = HoaDon.objects.aggregate(total=Sum('phi_giao_hang'))['total'] or Decimal('0')
+        
+        # === THỐNG KÊ ĐỎN HÀNG ===
+        total_orders = Order.objects.count()
+        orders_today = Order.objects.filter(order_time__date=today.date()).count()
+        orders_30days = Order.objects.filter(order_time__gte=last_30_days).count()
+        
+        # Đơn hàng theo trạng thái
+        orders_by_status = Order.objects.values('trang_thai').annotate(count=Count('id'))
+        
+        # Đơn hàng theo loại
+        orders_by_type = Order.objects.values('loai_order').annotate(count=Count('id'))
+        
+        # Đơn hàng theo phương thức giao hàng
+        orders_by_delivery = Order.objects.filter(loai_order='takeaway')\
+            .values('phuong_thuc_giao_hang')\
+            .annotate(count=Count('id'))
+        
+        # Thời gian chuẩn bị trung bình
+        avg_prep_time = Order.objects.filter(thoi_gian_lay__isnull=False)\
+            .aggregate(avg=Avg('thoi_gian_lay'))['avg']
+        
+        # === THỐNG KÊ MÓN ĂN ===
+        total_dishes = MonAn.objects.count()
+        available_dishes = MonAn.objects.filter(available=True).count()
+        unavailable_dishes = MonAn.objects.filter(available=False).count()
+        
+        # Món bán chạy nhất
+        top_dishes = ChiTietOrder.objects.values('mon_an__ten_mon')\
+            .annotate(total_sold=Sum('so_luong'), revenue=Sum(F('so_luong') * F('gia')))\
+            .order_by('-total_sold')[:10]
+        
+        # Món bán chạy 7 ngày gần nhất
+        top_dishes_7days_raw = ChiTietOrder.objects.filter(order__order_time__gte=last_7_days)\
+            .values('mon_an__ten_mon')\
+            .annotate(total_sold=Sum('so_luong'))\
+            .order_by('-total_sold')[:5]
+        
+        # Tính phần trăm cho progress bar
+        top_dishes_7days = list(top_dishes_7days_raw)
+        if top_dishes_7days:
+            max_sold = top_dishes_7days[0]['total_sold']
+            for dish in top_dishes_7days:
+                dish['percentage'] = int((dish['total_sold'] / max_sold * 100)) if max_sold > 0 else 0
+        
+        # Danh mục có nhiều món nhất
+        categories_stats = DanhMuc.objects.annotate(dish_count=Count('mon_an')).order_by('-dish_count')
+        
+        # === THỐNG KÊ BÀN ĂN ===
+        total_tables = BanAn.objects.count()
+        
+        # Bàn theo khu vực
+        tables_by_area = BanAn.objects.values('khu_vuc').annotate(count=Count('id'))
+        
+        # Tổng sức chứa
+        total_capacity = BanAn.objects.aggregate(total=Sum('suc_chua'))['total'] or 0
+        
+        # Bàn đang có đơn (active)
+        active_tables = Order.objects.filter(
+            trang_thai__in=['pending', 'confirmed', 'cooking', 'ready'],
+            ban_an__isnull=False
+        ).values_list('ban_an_id', flat=True).distinct().count()
+        
+        # === THỐNG KÊ NHÂN VIÊN ===
+        total_staff = NguoiDung.objects.filter(loai_nguoi_dung='nhan_vien').count()
+        staff_working = NguoiDung.objects.filter(loai_nguoi_dung='nhan_vien', dang_lam_viec=True).count()
+        
+        # Nhân viên theo chức vụ
+        staff_by_role = NguoiDung.objects.filter(loai_nguoi_dung='nhan_vien')\
+            .values('chuc_vu')\
+            .annotate(count=Count('id'))
+        
+        # Nhân viên theo ca làm
+        staff_by_shift = NguoiDung.objects.filter(loai_nguoi_dung='nhan_vien')\
+            .values('ca_lam')\
+            .annotate(count=Count('id'))
+        
+        # Top nhân viên xử lý nhiều đơn nhất
+        top_staff = Order.objects.filter(nhan_vien__isnull=False)\
+            .values('nhan_vien__ho_ten')\
+            .annotate(order_count=Count('id'))\
+            .order_by('-order_count')[:10]
+        
+        # === THỐNG KÊ KHÁCH HÀNG ===
+        total_customers = NguoiDung.objects.filter(loai_nguoi_dung='khach_hang').count()
+        total_khach_vang_lai = KhachVangLai.objects.count()
+        
+        # Khách hàng có đơn hàng
+        customers_with_orders = Order.objects.filter(khach_hang__isnull=False)\
+            .values('khach_hang').distinct().count()
+        
+        # Top khách hàng
+        top_customers = Order.objects.filter(khach_hang__isnull=False)\
+            .values('khach_hang__ho_ten', 'khach_hang__so_dien_thoai')\
+            .annotate(order_count=Count('id'))\
+            .order_by('-order_count')[:10]
+        
+        # === THỐNG KÊ NGUYÊN LIỆU ===
+        total_ingredients = NguyenLieu.objects.count()
+        
+        # Nguyên liệu dưới ngưỡng cảnh báo
+        low_stock = NguyenLieu.objects.filter(
+            Q(so_luong__lte=F('threshold')) & Q(threshold__gt=0)
+        ).count()
+        
+        # Danh sách nguyên liệu cần nhập
+        ingredients_need_restock = NguyenLieu.objects.filter(
+            Q(so_luong__lte=F('threshold')) & Q(threshold__gt=0)
+        ).order_by('so_luong')[:10]
+        
+        # === THỐNG KÊ CHAT ===
+        total_conversations = Conversation.objects.count()
+        total_messages = ChatMessage.objects.count()
+        messages_today = ChatMessage.objects.filter(thoi_gian__date=today.date()).count()
+        messages_7days = ChatMessage.objects.filter(thoi_gian__gte=last_7_days).count()
+        
+        # Conversation hoạt động gần đây
+        recent_conversations = Conversation.objects.filter(last_message_at__isnull=False)\
+            .order_by('-last_message_at')[:5]
+        
+        # === THỐNG KÊ ĐẶT BÀN ===
+        total_reservations = DonHang.objects.count()
+        reservations_by_status = DonHang.objects.values('trang_thai').annotate(count=Count('id'))
+        
+        context = {
+            'site_title': 'Thống kê Nhà hàng',
+            'site_header': 'Thống kê Tổng quan',
+            
+            # Doanh thu
+            'total_revenue': total_revenue,
+            'revenue_today': revenue_today,
+            'revenue_30days': revenue_30days,
+            'revenue_by_day': list(revenue_by_day),
+            'revenue_by_month': list(revenue_by_month),
+            'total_shipping_fee': total_shipping_fee,
+            
+            # Đơn hàng
+            'total_orders': total_orders,
+            'orders_today': orders_today,
+            'orders_30days': orders_30days,
+            'orders_by_status': list(orders_by_status),
+            'orders_by_type': list(orders_by_type),
+            'orders_by_delivery': list(orders_by_delivery),
+            'avg_prep_time': avg_prep_time,
+            
+            # Món ăn
+            'total_dishes': total_dishes,
+            'available_dishes': available_dishes,
+            'unavailable_dishes': unavailable_dishes,
+            'top_dishes': list(top_dishes),
+            'top_dishes_7days': list(top_dishes_7days),
+            'categories_stats': categories_stats,
+            
+            # Bàn ăn
+            'total_tables': total_tables,
+            'tables_by_area': list(tables_by_area),
+            'total_capacity': total_capacity,
+            'active_tables': active_tables,
+            
+            # Nhân viên
+            'total_staff': total_staff,
+            'staff_working': staff_working,
+            'staff_by_role': list(staff_by_role),
+            'staff_by_shift': list(staff_by_shift),
+            'top_staff': list(top_staff),
+            
+            # Khách hàng
+            'total_customers': total_customers,
+            'total_khach_vang_lai': total_khach_vang_lai,
+            'customers_with_orders': customers_with_orders,
+            'top_customers': list(top_customers),
+            
+            # Nguyên liệu
+            'total_ingredients': total_ingredients,
+            'low_stock': low_stock,
+            'ingredients_need_restock': ingredients_need_restock,
+            
+            # Chat
+            'total_conversations': total_conversations,
+            'total_messages': total_messages,
+            'messages_today': messages_today,
+            'messages_7days': messages_7days,
+            'recent_conversations': recent_conversations,
+            
+            # Đặt bàn
+            'total_reservations': total_reservations,
+            'reservations_by_status': list(reservations_by_status),
+        }
+        
+        return render(request, 'admin/statistics.html', context)
+    
+    def index(self, request, extra_context=None):
+        """Override index để thêm link tới trang thống kê"""
+        extra_context = extra_context or {}
+        extra_context['show_statistics_link'] = True
+        return super().index(request, extra_context)
+
+
+# Sử dụng custom admin site
+admin_site = StatisticsAdminSite(name='admin')
+admin.site = admin_site
+
 admin.site.register(NguoiDung, NguoiDungAdmin)
 admin.site.register(MonAn, MonAnAdmin)
 admin.site.register(DanhMuc)
@@ -251,4 +500,4 @@ admin.site.register(Order, OrderAdmin)
 admin.site.register(AboutUs, AboutUsAdmin)
 admin.site.register(HoaDon, HoaDonAdmin)
 admin.site.register(Conversation, ConversationAdmin)
-admin.site.register(ChatMessage, ChatMessageAdmin)
+# admin.site.register(ChatMessage, ChatMessageAdmin)

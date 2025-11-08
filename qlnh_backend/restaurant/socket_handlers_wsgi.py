@@ -27,7 +27,6 @@ def connect(sid, environ, auth):
     Xử lý khi client kết nối
     Auth payload: {'user_id': int, 'token': str (optional)}
     """
-    print(f"[CONNECT] Client {sid} connected")
     
     if not auth or 'user_id' not in auth:
         print(f"[CONNECT] Rejected: No user_id in auth")

@@ -1,0 +1,67 @@
+{% extends "admin/index.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .statistics-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        color: white;
+        text-align: center;
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+    
+    .statistics-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    }
+    
+    .statistics-card h2 {
+        font-size: 28px;
+        margin-bottom: 10px;
+        font-weight: bold;
+    }
+    
+    .statistics-card p {
+        font-size: 16px;
+        margin-bottom: 20px;
+        opacity: 0.9;
+    }
+    
+    .statistics-btn {
+        display: inline-block;
+        background: white;
+        color: #667eea;
+        padding: 12px 30px;
+        border-radius: 25px;
+        text-decoration: none;
+        font-weight: bold;
+        font-size: 16px;
+        transition: all 0.3s;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .statistics-btn:hover {
+        background: #f8f9fa;
+        color: #764ba2;
+        transform: scale(1.05);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="statistics-card">
+    <h2>📊 Thống kê Nhà hàng</h2>
+    <p>Xem tổng quan về doanh thu, đơn hàng, món ăn, nhân viên, khách hàng và nhiều hơn nữa</p>
+    <a href="{% url 'admin:statistics' %}" class="statistics-btn">
+        Xem Thống Kê Chi Tiết →
+    </a>
+</div>
+
+{{ block.super }}
+{% endblock %}

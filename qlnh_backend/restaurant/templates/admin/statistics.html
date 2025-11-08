@@ -1,0 +1,590 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Thống kê Nhà hàng{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .statistics-container {
+        padding: 20px;
+        background: #f8f9fa;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .stat-card.revenue {
+        border-left: 4px solid #28a745;
+    }
+    
+    .stat-card.orders {
+        border-left: 4px solid #007bff;
+    }
+    
+    .stat-card.dishes {
+        border-left: 4px solid #ffc107;
+    }
+    
+    .stat-card.tables {
+        border-left: 4px solid #17a2b8;
+    }
+    
+    .stat-card.staff {
+        border-left: 4px solid #6f42c1;
+    }
+    
+    .stat-card.customers {
+        border-left: 4px solid #fd7e14;
+    }
+    
+    .stat-card.ingredients {
+        border-left: 4px solid #dc3545;
+    }
+    
+    .stat-card.chat {
+        border-left: 4px solid #20c997;
+    }
+    
+    .stat-label {
+        font-size: 14px;
+        color: #6c757d;
+        margin-bottom: 8px;
+        font-weight: 500;
+    }
+    
+    .stat-value {
+        font-size: 32px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    
+    .stat-subtitle {
+        font-size: 12px;
+        color: #6c757d;
+    }
+    
+    .section-title {
+        font-size: 24px;
+        font-weight: bold;
+        margin: 30px 0 15px 0;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #dee2e6;
+        color: #333;
+    }
+    
+    .table-container {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        overflow-x: auto;
+    }
+    
+    .stats-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .stats-table th {
+        background: #f8f9fa;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .stats-table td {
+        padding: 12px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .stats-table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .badge-success { background: #d4edda; color: #155724; }
+    .badge-warning { background: #fff3cd; color: #856404; }
+    .badge-danger { background: #f8d7da; color: #721c24; }
+    .badge-info { background: #d1ecf1; color: #0c5460; }
+    .badge-primary { background: #cce5ff; color: #004085; }
+    
+    .chart-container {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .progress {
+        height: 20px;
+        background: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 10px 0;
+    }
+    
+    .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #007bff, #0056b3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 12px;
+        font-weight: 600;
+        transition: width 0.3s;
+    }
+    
+    .alert {
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .alert-warning {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        color: #856404;
+    }
+    
+    .alert-danger {
+        background: #f8d7da;
+        border-left: 4px solid #dc3545;
+        color: #721c24;
+    }
+    
+    .two-column-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    
+    @media (max-width: 768px) {
+        .two-column-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .summary-item:last-child {
+        border-bottom: none;
+    }
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set width cho progress bars từ data attribute
+    document.querySelectorAll('.progress-bar[data-width]').forEach(function(el) {
+        var width = el.getAttribute('data-width');
+        el.style.width = width + '%';
+    });
+});
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="statistics-container">
+    <h1 style="margin-bottom: 30px; color: #333;">📊 Thống kê Tổng quan Nhà hàng</h1>
+    
+    <!-- Tổng quan chính -->
+    <div class="stats-grid">
+        <div class="stat-card revenue">
+            <div class="stat-label">💰 Tổng Doanh Thu</div>
+            <div class="stat-value">{{ total_revenue|floatformat:0 }} ₫</div>
+            <div class="stat-subtitle">Tất cả thời gian</div>
+        </div>
+        
+        <div class="stat-card revenue">
+            <div class="stat-label">💵 Doanh Thu Hôm Nay</div>
+            <div class="stat-value">{{ revenue_today|floatformat:0 }} ₫</div>
+            <div class="stat-subtitle">{{ revenue_today|floatformat:0 }}</div>
+        </div>
+        
+        <div class="stat-card revenue">
+            <div class="stat-label">📅 Doanh Thu 30 Ngày</div>
+            <div class="stat-value">{{ revenue_30days|floatformat:0 }} ₫</div>
+            <div class="stat-subtitle">Tháng gần nhất</div>
+        </div>
+        
+        <div class="stat-card orders">
+            <div class="stat-label">🛒 Tổng Đơn Hàng</div>
+            <div class="stat-value">{{ total_orders }}</div>
+            <div class="stat-subtitle">Hôm nay: {{ orders_today }} | 30 ngày: {{ orders_30days }}</div>
+        </div>
+        
+        <div class="stat-card dishes">
+            <div class="stat-label">🍽️ Món Ăn</div>
+            <div class="stat-value">{{ total_dishes }}</div>
+            <div class="stat-subtitle">Có sẵn: {{ available_dishes }} | Hết: {{ unavailable_dishes }}</div>
+        </div>
+        
+        <div class="stat-card tables">
+            <div class="stat-label">🪑 Bàn Ăn</div>
+            <div class="stat-value">{{ total_tables }}</div>
+            <div class="stat-subtitle">Đang dùng: {{ active_tables }} | Sức chứa: {{ total_capacity }} người</div>
+        </div>
+        
+        <div class="stat-card staff">
+            <div class="stat-label">👨‍🍳 Nhân Viên</div>
+            <div class="stat-value">{{ total_staff }}</div>
+            <div class="stat-subtitle">Đang làm: {{ staff_working }}</div>
+        </div>
+        
+        <div class="stat-card customers">
+            <div class="stat-label">👥 Khách Hàng</div>
+            <div class="stat-value">{{ total_customers }}</div>
+            <div class="stat-subtitle">Vãng lai: {{ total_khach_vang_lai }} | Có đơn: {{ customers_with_orders }}</div>
+        </div>
+        
+        <div class="stat-card ingredients">
+            <div class="stat-label">📦 Nguyên Liệu</div>
+            <div class="stat-value">{{ total_ingredients }}</div>
+            <div class="stat-subtitle">Cảnh báo: <span style="color: #dc3545; font-weight: bold;">{{ low_stock }}</span></div>
+        </div>
+        
+        <div class="stat-card chat">
+            <div class="stat-label">💬 Tin Nhắn</div>
+            <div class="stat-value">{{ total_messages }}</div>
+            <div class="stat-subtitle">Hôm nay: {{ messages_today }} | 7 ngày: {{ messages_7days }}</div>
+        </div>
+        
+        <div class="stat-card revenue">
+            <div class="stat-label">🚚 Phí Giao Hàng</div>
+            <div class="stat-value">{{ total_shipping_fee|floatformat:0 }} ₫</div>
+            <div class="stat-subtitle">Tổng thu được</div>
+        </div>
+        
+        <div class="stat-card orders">
+            <div class="stat-label">⏱️ Thời Gian Chuẩn Bị TB</div>
+            <div class="stat-value">{% if avg_prep_time %}{{ avg_prep_time|floatformat:0 }}{% else %}N/A{% endif %}</div>
+            <div class="stat-subtitle">Phút</div>
+        </div>
+    </div>
+    
+    <!-- Cảnh báo Nguyên liệu -->
+    {% if low_stock > 0 %}
+    <div class="alert alert-danger">
+        <strong>⚠️ Cảnh báo!</strong> Có {{ low_stock }} nguyên liệu đang dưới ngưỡng tồn kho cần nhập hàng ngay!
+    </div>
+    {% endif %}
+    
+    <!-- Đơn hàng theo trạng thái -->
+    <h2 class="section-title">📊 Đơn Hàng Theo Trạng Thái</h2>
+    <div class="table-container">
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>Trạng thái</th>
+                    <th>Số lượng</th>
+                    <th>Tỷ lệ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in orders_by_status %}
+                <tr>
+                    <td>
+                        {% if item.trang_thai == 'pending' %}
+                            <span class="badge badge-warning">Chờ xác nhận</span>
+                        {% elif item.trang_thai == 'confirmed' %}
+                            <span class="badge badge-info">Đã xác nhận</span>
+                        {% elif item.trang_thai == 'cooking' %}
+                            <span class="badge badge-primary">Đang nấu</span>
+                        {% elif item.trang_thai == 'ready' %}
+                            <span class="badge badge-success">Sẵn sàng</span>
+                        {% elif item.trang_thai == 'completed' %}
+                            <span class="badge badge-success">Hoàn thành</span>
+                        {% else %}
+                            <span class="badge badge-danger">Đã hủy</span>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ item.count }}</strong></td>
+                    <td>
+                        {% widthratio item.count total_orders 100 %}%
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Top món bán chạy -->
+    <h2 class="section-title">🏆 Top Món Bán Chạy Nhất</h2>
+    <div class="table-container">
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Tên món</th>
+                    <th>Số lượng đã bán</th>
+                    <th>Doanh thu</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in top_dishes %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><strong>{{ item.mon_an__ten_mon }}</strong></td>
+                    <td>{{ item.total_sold }}</td>
+                    <td>{{ item.revenue|floatformat:0 }} ₫</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" style="text-align: center;">Chưa có dữ liệu</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Top món bán chạy 7 ngày -->
+    <h2 class="section-title">🔥 Top Món Bán Chạy 7 Ngày Qua</h2>
+    <div class="table-container">
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Tên món</th>
+                    <th>Số lượng</th>
+                    <th>Xu hướng</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in top_dishes_7days %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><strong>{{ item.mon_an__ten_mon }}</strong></td>
+                    <td>{{ item.total_sold }}</td>
+                    <td>
+                        <div class="progress">
+                            <div class="progress-bar" data-width="{{ item.percentage }}">
+                                {{ item.total_sold }}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" style="text-align: center;">Chưa có dữ liệu</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Top nhân viên -->
+    <h2 class="section-title">⭐ Top Nhân Viên Xuất Sắc</h2>
+    <div class="table-container">
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Họ tên</th>
+                    <th>Số đơn đã xử lý</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in top_staff %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><strong>{{ item.nhan_vien__ho_ten }}</strong></td>
+                    <td>{{ item.order_count }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" style="text-align: center;">Chưa có dữ liệu</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Top khách hàng -->
+    <h2 class="section-title">👑 Top Khách Hàng Thân Thiết</h2>
+    <div class="table-container">
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Họ tên</th>
+                    <th>Số điện thoại</th>
+                    <th>Số đơn hàng</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in top_customers %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td><strong>{{ item.khach_hang__ho_ten }}</strong></td>
+                    <td>{{ item.khach_hang__so_dien_thoai }}</td>
+                    <td>{{ item.order_count }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" style="text-align: center;">Chưa có dữ liệu</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Nguyên liệu cần nhập -->
+    {% if ingredients_need_restock %}
+    <h2 class="section-title">⚠️ Nguyên Liệu Cần Nhập Khẩn</h2>
+    <div class="table-container">
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>Tên nguyên liệu</th>
+                    <th>Số lượng hiện tại</th>
+                    <th>Ngưỡng cảnh báo</th>
+                    <th>Đơn vị</th>
+                    <th>Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in ingredients_need_restock %}
+                <tr>
+                    <td><strong>{{ item.ten_nguyen_lieu }}</strong></td>
+                    <td style="color: #dc3545; font-weight: bold;">{{ item.so_luong }}</td>
+                    <td>{{ item.threshold }}</td>
+                    <td>{{ item.don_vi }}</td>
+                    <td><span class="badge badge-danger">Cần nhập gấp</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    
+    <!-- Thống kê bổ sung -->
+    <div class="two-column-grid">
+        <!-- Bàn theo khu vực -->
+        <div class="table-container">
+            <h3 style="margin-bottom: 15px;">🏠 Bàn Theo Khu Vực</h3>
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Khu vực</th>
+                        <th>Số bàn</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in tables_by_area %}
+                    <tr>
+                        <td>
+                            {% if item.khu_vuc == 'inside' %}Trong nhà
+                            {% elif item.khu_vuc == 'outside' %}Ngoài trời
+                            {% else %}VIP
+                            {% endif %}
+                        </td>
+                        <td><strong>{{ item.count }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Nhân viên theo chức vụ -->
+        <div class="table-container">
+            <h3 style="margin-bottom: 15px;">👔 Nhân Viên Theo Chức Vụ</h3>
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Chức vụ</th>
+                        <th>Số lượng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in staff_by_role %}
+                    <tr>
+                        <td>{{ item.get_chuc_vu_display|default:item.chuc_vu }}</td>
+                        <td><strong>{{ item.count }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="two-column-grid">
+        <!-- Đơn theo loại -->
+        <div class="table-container">
+            <h3 style="margin-bottom: 15px;">📦 Đơn Hàng Theo Loại</h3>
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Loại</th>
+                        <th>Số lượng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in orders_by_type %}
+                    <tr>
+                        <td>
+                            {% if item.loai_order == 'dine_in' %}
+                                <span class="badge badge-info">Ăn tại chỗ</span>
+                            {% else %}
+                                <span class="badge badge-warning">Mang về</span>
+                            {% endif %}
+                        </td>
+                        <td><strong>{{ item.count }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Danh mục món ăn -->
+        <div class="table-container">
+            <h3 style="margin-bottom: 15px;">📋 Danh Mục Món Ăn</h3>
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Danh mục</th>
+                        <th>Số món</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in categories_stats %}
+                    <tr>
+                        <td><strong>{{ item.ten_danh_muc }}</strong></td>
+                        <td>{{ item.dish_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <div style="text-align: center; margin-top: 40px; padding: 20px; color: #6c757d;">
+        <p>📊 Thống kê được cập nhật tự động | 🕐 Cập nhật lần cuối: {{ request.timestamp|default:"Vừa xong" }}</p>
+        <p><a href="{% url 'admin:index' %}" style="color: #007bff;">← Quay lại trang quản trị</a></p>
+    </div>
+</div>
+{% endblock %}
