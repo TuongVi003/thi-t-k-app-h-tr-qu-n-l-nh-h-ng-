@@ -24,7 +24,9 @@ class AuthService {
   /// Returns a map {'ok': bool, 'message': String} describing the result.
   Future<Map<String, dynamic>> loginWithApi(
       {required String username, required String password}) async {
+    // Clear any existing session first
     _accessToken = null;
+    _isLoggedIn = false;
     print('username: $username, password: $password');
     try {
       final uri = Uri.parse(ApiEndpoints.login);
@@ -63,10 +65,16 @@ class AuthService {
           registerFcmToken();
           return {'ok': true, 'message': 'OK'};
         }
+        // Login failed - ensure state is cleared
+        _accessToken = null;
+        _isLoggedIn = false;
         return {'ok': false, 'message': 'No access token in response'};
       }
 
       // If server returned JSON error, include it
+      // Ensure state is cleared on failure
+      _accessToken = null;
+      _isLoggedIn = false;
       final errorMsg =
           data['error_description'] ?? data['error'] ?? response.body;
       return {
@@ -74,6 +82,9 @@ class AuthService {
         'message': errorMsg ?? 'Login failed (status ${response.statusCode})'
       };
     } catch (e) {
+      // Ensure state is cleared on error
+      _accessToken = null;
+      _isLoggedIn = false;
       return {'ok': false, 'message': e.toString()};
     }
   }
