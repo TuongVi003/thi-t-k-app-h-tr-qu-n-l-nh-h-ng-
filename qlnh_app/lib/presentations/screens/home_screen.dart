@@ -6,6 +6,8 @@ import '../../constants/app_colors.dart';
 import 'home_tab.dart';
 import 'order_history_page.dart';
 import 'profile_page.dart';
+import 'user_info_screen.dart';
+import 'notifications_tab.dart';
 
 
 
@@ -32,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return [
       const HomeTab(),
       OrderHistoryTab(),
+      const NotificationsTab(),
       ProfileTab(),
     ];
   }
@@ -52,27 +55,37 @@ class _HomeScreenState extends State<HomeScreen> {
   void _logout() {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: const Text('Đăng xuất'),
           content: const Text('Bạn có chắc chắn muốn đăng xuất?'),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop();
+                Navigator.of(dialogContext).pop();
               },
               child: const Text('Hủy'),
             ),
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                AuthService.instance.logout();
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const LoginScreen(),
-                  ),
-                );
+              onPressed: () async {
+                // Close dialog first
+                Navigator.of(dialogContext).pop();
+                
+                // Wait a bit for dialog to close
+                await Future.delayed(const Duration(milliseconds: 100));
+                
+                // CRITICAL: Wait for logout to complete
+                await AuthService.instance.logout();
+                
+                // Navigate to login screen using mounted check
+                if (mounted && context.mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (context) => const LoginScreen(),
+                    ),
+                    (route) => false, // Remove all previous routes
+                  );
+                }
               },
               child: const Text('Đăng xuất'),
             ),
@@ -112,6 +125,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const ReservationScreen()),
+                    );
+                  } else if (value == 'profile') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const UserInfoScreen()),
                     );
                   }
                 },
@@ -161,6 +179,10 @@ class _HomeScreenState extends State<HomeScreen> {
               BottomNavigationBarItem(
                 icon: Icon(Icons.history),
                 label: 'Lịch sử',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.notifications),
+                label: 'Thông báo',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.person),

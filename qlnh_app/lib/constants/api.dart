@@ -24,4 +24,10 @@ class ApiEndpoints {
   
   // User profile
   static const String userProfile = '$baseUrl/api/users/current-user/';
+  
+  // Notifications
+  static const String notifications = '$baseUrl/api/notifications/';
+  
+  // Socket cleanup
+  static const String cleanupSocket = '$baseUrl/api/cleanup-socket/';
 }

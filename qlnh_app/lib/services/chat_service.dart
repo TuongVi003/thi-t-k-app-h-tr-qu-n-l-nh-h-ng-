@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import '../constants/api.dart';
@@ -29,38 +30,117 @@ class ChatService {
 
   /// Kết nối Socket.IO với user authentication
   Future<void> connect(int userId) async {
-    if (_socket?.connected ?? false) {
-      print('[ChatService] Already connected');
-      return;
+    print('[ChatService] 📞 connect() called with userId: $userId, current: $_currentUserId, socket exists: ${_socket != null}, connected: ${_socket?.connected}');
+    
+    // ⭐ CRITICAL: ALWAYS force cleanup before EVERY connection attempt
+    // This ensures no cached auth or stale session can be reused
+    if (_socket != null) {
+      print('[ChatService] 🔄 FORCE CLEANUP before connecting (existing socket detected)...');
+      await _forceCleanup();
+      print('[ChatService] ✅ Cleanup complete, ready for new connection');
+    } else if (_currentUserId != null && _currentUserId != userId) {
+      // Even if socket is null, if we're switching users, wait for backend cleanup
+      print('[ChatService] 🔄 User switch detected (old: $_currentUserId, new: $userId), requesting backend cleanup...');
+      // Try to inform backend to cleanup sessions for the previous user (best-effort)
+      try {
+        final oldUser = _currentUserId;
+        final uri = Uri.parse(ApiEndpoints.cleanupSocket);
+        final headers = AuthService.instance.authHeaders;
+        final body = json.encode({'user_id': oldUser});
+        final resp = await http.post(uri, headers: headers, body: body);
+        print('[ChatService] Backend cleanup (user switch) status: ${resp.statusCode}');
+      } catch (e) {
+        print('[ChatService] Warning: failed to request backend cleanup on user switch: $e');
+      }
+      _currentUserId = null;
+      await Future.delayed(const Duration(milliseconds: 1200));
     }
 
     _currentUserId = userId;
 
     try {
-      print('[ChatService] Connecting to ${ApiEndpoints.socketUrl}');
+      final token = AuthService.instance.accessToken;
+
+      print('[ChatService] 🆕 Creating BRAND NEW socket for user_id: $userId');
+      print('[ChatService] 🔗 Connecting to: ${ApiEndpoints.socketUrl}');
+      print('[ChatService] 🔑 Using token (truncated): ${token != null ? token.substring(0, 20) + "..." : "(null)"}');
+
+      // Include user_id + token + timestamp to remain compatible with current backend
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final uniqueId = '$userId-$timestamp-${DateTime.now().microsecond}';
+
+      final authPayload = {
+        'user_id': userId,
+        'token': token,
+        'timestamp': timestamp,
+        'unique_id': uniqueId,
+      };
+
+      print('[ChatService] 📦 Auth payload prepared: user_id=$userId, unique_id=$uniqueId, timestamp=$timestamp');
       
       _socket = IO.io(
         ApiEndpoints.socketUrl,
         IO.OptionBuilder()
             .setTransports(['websocket'])
-            .enableAutoConnect()
-            .enableReconnection()
-            .setReconnectionDelay(1000)
-            .setReconnectionDelayMax(5000)
-            .setReconnectionAttempts(5)
-            .setAuth({
-              'user_id': userId,
-            })
+            .disableAutoConnect()  
+            .disableReconnection()  
+            .setAuth(authPayload)
             .build(),
       );
 
       _setupSocketListeners();
 
+      // Prepare a short-lived completer to await actual connection or timeout
+      final completer = Completer<bool>();
+
+      void _onOnceConnect(dynamic _) {
+        if (!completer.isCompleted) completer.complete(true);
+      }
+
+      void _onOnceConnectError(dynamic _) {
+        if (!completer.isCompleted) completer.complete(false);
+      }
+
+      // Attach temporary handlers
+      try {
+        _socket!.on('connect', _onOnceConnect);
+        _socket!.on('connect_error', _onOnceConnectError);
+        _socket!.on('connect_timeout', _onOnceConnectError);
+      } catch (e) {
+        // ignore if handlers cannot be attached
+      }
+
       _socket!.connect();
 
-      print('[ChatService] Socket initialized');
+      print('[ChatService] 🚀 Socket connection initiated for user $userId');
+
+      // Wait up to 5s for a connection; otherwise treat as failed
+      bool connected = false;
+      try {
+        connected = await completer.future.timeout(const Duration(milliseconds: 5000));
+      } catch (_) {
+        connected = false;
+      }
+
+      // Cleanup temporary handlers
+      try {
+        _socket!.off('connect', _onOnceConnect);
+        _socket!.off('connect_error', _onOnceConnectError);
+        _socket!.off('connect_timeout', _onOnceConnectError);
+      } catch (_) {}
+
+      if (!connected) {
+        print('[ChatService] ❌ Socket failed to connect within timeout');
+        onError?.call('Không thể kết nối tới server (timeout)');
+        // Best-effort cleanup
+        try {
+          if (_socket!.connected) _socket!.disconnect();
+        } catch (_) {}
+        return;
+      }
+      
     } catch (e) {
-      print('[ChatService] Error connecting: $e');
+      print('[ChatService] ❌ Error connecting: $e');
       onError?.call('Không thể kết nối: $e');
     }
   }
@@ -71,8 +151,15 @@ class ChatService {
 
     // Kết nối thành công
     _socket!.on('connect', (_) {
-      print('[ChatService] Connected! Socket ID: ${_socket!.id}');
+      print('[ChatService] ✅ CONNECTED! User ID: $_currentUserId, Socket ID: ${_socket!.id}');
+      print('[ChatService] 📡 Backend should have mapped: sid=${_socket!.id} -> user_id=$_currentUserId');
       onConnectionChange?.call(true);
+    });
+    
+    // Reconnect (shouldn't happen since we disabled it, but just in case)
+    _socket!.on('reconnect', (attempt) {
+      print('[ChatService] ⚠️ RECONNECT detected (attempt $attempt) - This should NOT happen!');
+      print('[ChatService] User ID: $_currentUserId, Socket ID: ${_socket!.id}');
     });
 
     // Log all incoming events (helpful for debugging connection issues)
@@ -85,8 +172,9 @@ class ChatService {
     }
 
     // Mất kết nối
-    _socket!.on('disconnect', (_) {
-      print('[ChatService] Disconnected');
+    _socket!.on('disconnect', (reason) {
+      print('[ChatService] 🔌 DISCONNECTED - Reason: $reason');
+      print('[ChatService] User ID was: $_currentUserId');
       onConnectionChange?.call(false);
     });
 
@@ -112,6 +200,8 @@ class ChatService {
         print('[ChatService] Error parsing message: $e');
       }
     });
+
+    
 
     // Conversation mới (staff) - payload may be partial, build a Conversation model
     _socket!.on('new_conversation', (data) {
@@ -149,10 +239,43 @@ class ChatService {
   }
 
   /// Gửi tin nhắn qua Socket.IO
-  void sendMessage(String noiDung, {int? customerId}) {
+  Future<void> sendMessage(String noiDung, {int? customerId}) async {
     if (_socket == null || !(_socket!.connected)) {
-      onError?.call('Chưa kết nối tới server');
-      return;
+      print('[ChatService] ⚠️ Socket not connected, attempting REST fallback');
+
+      // Try to send via REST immediately so user action is not blocked.
+      if (_currentConversation != null) {
+        final fallback = await sendMessageViaApi(_currentConversation!.id, noiDung.trim());
+        if (fallback != null) {
+          onNewMessage?.call(fallback);
+          // Also attempt to reconnect in background for future socket use
+          if (_currentUserId != null) {
+            // fire-and-forget
+            connect(_currentUserId!);
+          }
+          return;
+        } else {
+          onError?.call('Không gửi được tin nhắn (socket và REST đều lỗi)');
+          // Try to reconnect in background
+          if (_currentUserId != null) connect(_currentUserId!);
+          return;
+        }
+      } else {
+        // Try to obtain conversation and send
+        final conv = await getMyConversation();
+        if (conv != null) {
+          final fallback = await sendMessageViaApi(conv.id, noiDung.trim());
+          if (fallback != null) {
+            onNewMessage?.call(fallback);
+            if (_currentUserId != null) connect(_currentUserId!);
+            return;
+          }
+        }
+
+        onError?.call('Chưa có conversation để gửi và socket không kết nối');
+        if (_currentUserId != null) connect(_currentUserId!);
+        return;
+      }
     }
 
     if (noiDung.trim().isEmpty) {
@@ -160,13 +283,67 @@ class ChatService {
       return;
     }
 
+    // Send immediately (no client-side queueing). Server will validate and
+    // reject if the session isn't valid; rely on server-side fixes for stale sid.
+
     final data = {
       'noi_dung': noiDung.trim(),
       if (customerId != null) 'customer_id': customerId,
     };
 
-    print('[ChatService] Sending message: $data');
-    _socket!.emit('send_message', data);
+    print('[ChatService] 📤 SENDING MESSAGE:');
+    print('[ChatService]    From user_id: $_currentUserId');
+    print('[ChatService]    Socket ID: ${_socket!.id}');
+    print('[ChatService]    Data: $data');
+    print('[ChatService]    Backend should use: connected_users[${_socket!.id}] = $_currentUserId');
+    
+    // Emit via socket and wait briefly for server to echo back the message.
+    // If no echo within timeout, fallback to REST API to ensure message is persisted.
+    bool acked = false;
+
+    void ackHandler(dynamic payload) {
+      try {
+        if (payload is Map<String, dynamic>) {
+          final String serverText = (payload['noi_dung'] ?? '') as String;
+          final dynamic senderIdRaw = payload['nguoi_goi_id'] ?? payload['nguoi_goi'];
+          final int senderId = senderIdRaw is int ? senderIdRaw : int.tryParse('$senderIdRaw') ?? 0;
+          if (serverText.trim() == noiDung.trim() && senderId == (_currentUserId ?? 0)) {
+            acked = true;
+          }
+        }
+      } catch (e) {
+        // ignore parse errors
+      }
+    }
+
+    try {
+      _socket!.on('new_message', ackHandler);
+      _socket!.emit('send_message', data);
+
+      // Wait short time for server broadcast to come back
+      await Future.delayed(const Duration(milliseconds: 900));
+    } catch (e) {
+      print('[ChatService] Error emitting message: $e');
+    } finally {
+      try {
+        _socket!.off('new_message', ackHandler);
+      } catch (_) {}
+    }
+
+    if (!acked) {
+      print('[ChatService] ⚠️ No socket ack received, falling back to REST API');
+      if (_currentConversation != null) {
+        final fallback = await sendMessageViaApi(_currentConversation!.id, noiDung.trim());
+        if (fallback != null) {
+          // Notify UI with server-confirmed message
+          onNewMessage?.call(fallback);
+        } else {
+          onError?.call('Không gửi được tin nhắn (socket và REST đều lỗi)');
+        }
+      } else {
+        onError?.call('Không có conversation để gửi qua REST');
+      }
+    }
   }
 
   /// Gửi sự kiện đang gõ
@@ -190,12 +367,53 @@ class ChatService {
   }
 
   /// Ngắt kết nối Socket.IO
-  void disconnect() {
-    print('[ChatService] Disconnecting...');
-    _socket?.disconnect();
-    _socket?.dispose();
-    _socket = null;
-    _currentConversation = null;
+  Future<void> disconnect() async {
+    await _forceCleanup();
+  }
+
+  /// FORCE cleanup - more aggressive than disconnect()
+  Future<void> _forceCleanup() async {
+    if (_socket == null) {
+      print('[ChatService] _forceCleanup: No socket to cleanup');
+      _currentConversation = null;
+      _currentUserId = null;
+      return;
+    }
+    
+    final oldUserId = _currentUserId;
+    final oldSocketId = _socket?.id;
+    
+    print('[ChatService] � FORCE CLEANUP (user: $oldUserId, socket: $oldSocketId)...');
+    
+    try {
+      // Best-effort: tell backend to cleanup any sessions related to this socket/user
+      try {
+        final uri = Uri.parse(ApiEndpoints.cleanupSocket);
+        final headers = AuthService.instance.authHeaders;
+        final body = json.encode({'user_id': oldUserId, 'socket_id': oldSocketId});
+        final resp = await http.post(uri, headers: headers, body: body);
+        print('[ChatService] Backend cleanup (force) status: ${resp.statusCode}');
+      } catch (e) {
+        print('[ChatService] Warning: backend cleanup call failed during force cleanup: $e');
+      }
+      if (_socket!.connected) {
+        _socket!.disconnect();
+      }
+      _socket!.clearListeners();
+      _socket!.dispose();
+    } catch (e) {
+      print('[ChatService] Error during force cleanup: $e');
+    }
+    
+  _socket = null;
+  _currentConversation = null;
+  _currentUserId = null;
+    
+    // Wait LONGER for backend
+    print('[ChatService] ⏳ Waiting 1.2s for backend cleanup...');
+    await Future.delayed(const Duration(milliseconds: 1200));
+    
+    print('[ChatService] ✅ Force cleanup complete (was user: $oldUserId, socket: $oldSocketId)');
   }
 
   // === REST API Methods ===

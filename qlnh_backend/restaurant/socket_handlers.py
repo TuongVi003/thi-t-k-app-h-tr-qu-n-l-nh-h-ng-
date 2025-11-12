@@ -3,24 +3,46 @@ Socket.IO handlers cho tính năng chat
 Xử lý real-time messaging giữa khách hàng và nhân viên
 """
 import socketio
+import os
 from restaurant.models import Conversation, ChatMessage, NguoiDung, FCMDevice
 from django.contrib.auth import get_user_model
 from asgiref.sync import sync_to_async
+
+# Configurable maximum auth age (milliseconds). Increase if clients have clock skew or network delay.
+AUTH_MAX_AGE_MS = int(os.getenv('AUTH_MAX_AGE_MS', '30000'))  # default 30s
 
 # Tạo Socket.IO server instance
 sio = socketio.AsyncServer(
     async_mode='asgi',
     cors_allowed_origins='*',  # Thay đổi theo domain của bạn trong production
     logger=True,
-    engineio_logger=True
+    engineio_logger=True,
+    # CRITICAL: Prevent reconnection with stale auth
+    ping_timeout=10,  # Giảm timeout để phát hiện disconnect nhanh hơn
+    ping_interval=5,  # Ping thường xuyên hơn
+    # Force always_connect=True to require fresh auth on each connection
+    always_connect=True,
+    # CRITICAL: Disable cookie-based session to prevent Engine.IO from reusing old sessions
+    cookie=None,  # No cookie = force new session every time
 )
 
 # Track connected users: {sid: user_id}
 connected_users = {}
 
+# Track expected auth: {sid: {'user_id': int, 'timestamp': int}}
+# This prevents Engine.IO from reusing stale sessions
+expected_auth = {}
+
 # Room naming convention:
 # - Customer joins: f"customer_{customer_id}"
 # - Staff joins: "staff_room" + all f"customer_{id}" rooms
+
+
+def cleanup_session(sid):
+    """Helper to completely clean up a session"""
+    connected_users.pop(sid, None)
+    expected_auth.pop(sid, None)
+    print(f"[CLEANUP] Removed session {sid} from all tracking dicts")
 
 
 @sio.event
@@ -29,18 +51,87 @@ async def connect(sid, environ, auth):
     Xử lý khi client kết nối
     Auth payload: {'user_id': int, 'token': str (optional)}
     """
-    print(f"[CONNECT] Client {sid} connected")
+    print(f"[CONNECT] ==================== NEW CONNECTION ====================")
+    print(f"[CONNECT] Socket ID: {sid}")
+    print(f"[CONNECT] Auth received: {auth}")
+    print(f"[CONNECT] Expected auth: {expected_auth.get(sid, 'NONE')}")
+    print(f"[CONNECT] Current connected_users: {connected_users}")
+    
+    # CRITICAL: Check if this is a stale reconnection
+    # If we have no expected_auth for this sid, it might be Engine.IO reusing old session
+    if sid not in expected_auth and sid in connected_users:
+        old_user_id = connected_users[sid]
+        new_user_id = auth.get('user_id') if auth else None
+        print(f"[CONNECT] 🚨 STALE SESSION DETECTED!")
+        print(f"[CONNECT] 🚨 SID {sid} has old user {old_user_id} but no expected_auth")
+        print(f"[CONNECT] 🚨 New auth claims user {new_user_id}")
+        print(f"[CONNECT] 🚨 REJECTING to force fresh connection")
+        # Clean up
+        cleanup_session(sid)
+        return False
+    
+    # CRITICAL: Always check if this sid was previously connected with a DIFFERENT user
+    if sid in connected_users:
+        old_user_id = connected_users[sid]
+        new_user_id = auth.get('user_id') if auth else None
+        if old_user_id != new_user_id:
+            print(f"[CONNECT] ⚠️ WARNING: SID {sid} was previously user {old_user_id}, now requesting {new_user_id}")
+            print(f"[CONNECT] 🧹 Cleaning up old connection...")
+            # Remove old mapping
+            cleanup_session(sid)
     
     if not auth or 'user_id' not in auth:
-        print(f"[CONNECT] Rejected: No user_id in auth")
+        print(f"[CONNECT] ❌ Rejected: No user_id in auth")
+        cleanup_session(sid)
         return False  # Từ chối kết nối
     
     user_id = auth.get('user_id')
+    
+    # Extra validation: Check timestamp and unique_id to prevent stale auth
+    timestamp = auth.get('timestamp')
+    unique_id = auth.get('unique_id')
+    print(f"[CONNECT] Auth timestamp: {timestamp}, user_id: {user_id}, unique_id: {unique_id}")
+    
+    # CRITICAL: Check if unique_id is recent (within last 10 seconds)
+    if timestamp:
+        try:
+            import time
+            current_time = int(time.time() * 1000)  # Current time in milliseconds
+            auth_age = current_time - int(timestamp)
+            print(f"[CONNECT] Auth age: {auth_age}ms")
+            
+            if auth_age > AUTH_MAX_AGE_MS:  # Older than configured threshold
+                print(f"[CONNECT] 🚨 AUTH TOO OLD! Age: {auth_age}ms > {AUTH_MAX_AGE_MS}ms")
+                print(f"[CONNECT] 🚨 REJECTING stale authentication")
+                cleanup_session(sid)
+                return False
+        except (ValueError, TypeError) as e:
+            print(f"[CONNECT] ⚠️ Could not validate timestamp: {e}")
+    
+    # Validate against expected_auth if exists
+    if sid in expected_auth:
+        expected = expected_auth[sid]
+        if expected['user_id'] != user_id:
+            print(f"[CONNECT] 🚨 MISMATCH! Expected user {expected['user_id']}, got {user_id}")
+            print(f"[CONNECT] 🚨 REJECTING connection")
+            cleanup_session(sid)
+            return False
+        print(f"[CONNECT] ✅ Auth matches expected user {user_id}")
+    
     try:
         # Verify user exists
         user = await sync_to_async(NguoiDung.objects.get)(id=user_id)
+        
+        # FORCE UPDATE the mapping (override any cached value)
         connected_users[sid] = user_id
-        print(f"[CONNECT] User {user.ho_ten} ({user_id}) connected as {sid}")
+        expected_auth[sid] = {
+            'user_id': user_id, 
+            'timestamp': timestamp,
+            'unique_id': unique_id
+        }
+        print(f"[CONNECT] ✅ User {user.ho_ten} ({user_id}) connected as {sid}")
+        print(f"[CONNECT] 📝 Mapped: connected_users['{sid}'] = {user_id}")
+        print(f"[CONNECT] 📝 Expected: expected_auth['{sid}'] = {{'user_id': {user_id}, 'unique_id': '{unique_id}'}}")
         
         # Auto join rooms based on user type
         if user.loai_nguoi_dung == 'khach_hang':
@@ -67,18 +158,47 @@ async def connect(sid, environ, auth):
         return True
         
     except NguoiDung.DoesNotExist:
-        print(f"[CONNECT] Rejected: User {user_id} not found")
+        print(f"[CONNECT] ❌ Rejected: User {user_id} not found")
+        cleanup_session(sid)
         return False
     except Exception as e:
-        print(f"[CONNECT] Error: {e}")
+        print(f"[CONNECT] ❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
+        cleanup_session(sid)
         return False
 
 
 @sio.event
 async def disconnect(sid):
     """Xử lý khi client ngắt kết nối"""
-    user_id = connected_users.pop(sid, None)
-    print(f"[DISCONNECT] Client {sid} (user {user_id}) disconnected")
+    user_id = connected_users.get(sid)
+    cleanup_session(sid)
+    
+    # CRITICAL: Force disconnect from server side to ensure clean state
+    try:
+        await sio.disconnect(sid)
+    except Exception as e:
+        print(f"[DISCONNECT] Error forcing disconnect: {e}")
+    
+    if user_id:
+        print(f"[DISCONNECT] ✅ Client {sid} (user {user_id}) disconnected and cleaned up")
+    else:
+        print(f"[DISCONNECT] ⚠️ Client {sid} disconnected but was NOT in connected_users dict")
+    print(f"[DISCONNECT] 📊 Remaining connected users: {len(connected_users)}")
+    print(f"[DISCONNECT] 📊 Remaining expected_auth: {len(expected_auth)}")
+
+
+# Helper function to manually cleanup user sessions (called from views)
+def force_cleanup_user_sessions(user_id):
+    """Force cleanup all sessions for a specific user (called when user logs out)"""
+    sids_to_remove = [sid for sid, uid in connected_users.items() if uid == user_id]
+    for sid in sids_to_remove:
+        print(f"[FORCE_CLEANUP] Removing session {sid} for user {user_id}")
+        cleanup_session(sid)
+    print(f"[FORCE_CLEANUP] Cleaned up {len(sids_to_remove)} sessions for user {user_id}")
+    return len(sids_to_remove)
+
 
 
 @sio.event
@@ -94,6 +214,32 @@ async def send_message(sid, data):
         user_id = connected_users.get(sid)
         print(f"[DEBUG] send_message - SID: {sid}, user_id from connected_users: {user_id}")
         print(f"[DEBUG] All connected_users: {connected_users}")
+        print(f"[DEBUG] All expected_auth: {expected_auth}")
+        
+        # CRITICAL: Validate this is not a stale session
+        if sid not in expected_auth:
+            print(f"[ERROR] 🚨 STALE SESSION! SID {sid} not in expected_auth but has user_id {user_id}")
+            print(f"[ERROR] 🚨 This means connect() was never called or was rejected")
+            print(f"[ERROR] 🚨 REJECTING message to force reconnection")
+            cleanup_session(sid)
+            await sio.emit('error', {'message': 'Session expired. Please reconnect.'}, room=sid)
+            await sio.disconnect(sid)
+            return
+        
+        # CRITICAL: Also validate timestamp is recent (within last 5 minutes)
+        expected = expected_auth[sid]
+        auth_timestamp = expected.get('timestamp')
+        if auth_timestamp:
+            import time
+            current_time = int(time.time() * 1000)
+            age_seconds = (current_time - auth_timestamp) / 1000
+            if age_seconds > 300:  # 5 minutes
+                print(f"[ERROR] 🚨 AUTH TOO OLD! SID {sid} auth is {age_seconds:.1f} seconds old")
+                print(f"[ERROR] 🚨 REJECTING to force fresh reconnection")
+                cleanup_session(sid)
+                await sio.emit('error', {'message': 'Session expired. Please reconnect.'}, room=sid)
+                await sio.disconnect(sid)
+                return
         
         if not user_id:
             await sio.emit('error', {'message': 'Unauthorized'}, room=sid)

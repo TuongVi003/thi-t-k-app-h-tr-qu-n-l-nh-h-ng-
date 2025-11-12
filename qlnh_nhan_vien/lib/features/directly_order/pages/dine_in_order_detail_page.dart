@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/dine_in_order.dart';
 import '../services/dine_in_order_service.dart';
+import '../../../services/about_us_service.dart';
+import 'package:qlnh_nhan_vien/widgets/invoice_button.dart';
 
 class DineInOrderDetailPage extends StatefulWidget {
   final int orderId;
@@ -35,8 +37,9 @@ class _DineInOrderDetailPageState extends State<DineInOrderDetailPage> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
+        final errMsg = _getErrorMessage(e);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e')),
+          SnackBar(content: Text('Lỗi: $errMsg')),
         );
       }
     }
@@ -91,8 +94,9 @@ class _DineInOrderDetailPageState extends State<DineInOrderDetailPage> {
       } catch (e) {
         setState(() => _isProcessing = false);
         if (mounted) {
+          final errMsg = _getErrorMessage(e);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Lỗi: $e')),
+            SnackBar(content: Text('Lỗi: $errMsg')),
           );
         }
       }
@@ -115,8 +119,9 @@ class _DineInOrderDetailPageState extends State<DineInOrderDetailPage> {
     } catch (e) {
       setState(() => _isProcessing = false);
       if (mounted) {
+        final errMsg = _getErrorMessage(e);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e')),
+          SnackBar(content: Text('Lỗi: $errMsg')),
         );
       }
     }
@@ -157,8 +162,10 @@ class _DineInOrderDetailPageState extends State<DineInOrderDetailPage> {
       } catch (e) {
         setState(() => _isProcessing = false);
         if (mounted) {
+          final errMsg = _getErrorMessage(e);
+          print('Lỗi: $errMsg');
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Lỗi: $e')),
+            SnackBar(content: Text('Lỗi: $errMsg')),
           );
         }
       }
@@ -166,28 +173,127 @@ class _DineInOrderDetailPageState extends State<DineInOrderDetailPage> {
   }
 
   Future<void> _deliverToTable() async {
-    final confirm = await showDialog<bool>(
+    // First ask for payment method: 'cash' or 'card'
+    String? paymentMethod = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xác nhận'),
-        content: const Text('Xác nhận đã đem món tới bàn?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Hủy'),
+      builder: (context) {
+        String? selected;
+        return AlertDialog(
+          title: const Text('Chọn phương thức thanh toán'),
+          content: StatefulBuilder(
+            builder: (context, setState) => Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<String>(
+                  title: const Text('Tiền mặt'),
+                  value: 'cash',
+                  groupValue: selected,
+                  onChanged: (v) => setState(() => selected = v),
+                ),
+                RadioListTile<String>(
+                  title: const Text('Thẻ'),
+                  value: 'card',
+                  groupValue: selected,
+                  onChanged: (v) => setState(() => selected = v),
+                ),
+              ],
+            ),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Xác nhận'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, selected),
+              child: const Text('Tiếp tục'),
+            ),
+          ],
+        );
+      },
     );
+
+    if (paymentMethod == null) return; // cancelled or not selected
+
+    bool? confirm;
+    if (paymentMethod == 'card') {
+      // Fetch payment QR URL and show it to the user before confirming
+      setState(() => _isProcessing = true);
+      String? qrUrl;
+      try {
+        qrUrl = await AboutUsService.getPaymentQrUrl();
+      } catch (e) {
+        setState(() => _isProcessing = false);
+        if (mounted) {
+          final errMsg = _getErrorMessage(e);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Lỗi lấy QR: $errMsg')),
+          );
+        }
+        return;
+      }
+      setState(() => _isProcessing = false);
+
+      if (qrUrl == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Không tìm thấy mã QR thanh toán')),
+          );
+        }
+        return;
+      }
+
+      confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Xác nhận'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Xác nhận đã đem món tới bàn?\nPhương thức: Thẻ'),
+              const SizedBox(height: 12),
+              Image.network(
+                qrUrl!,
+                width: 200,
+                height: 200,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => const Text('Không thể tải ảnh QR'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Xác nhận'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Xác nhận'),
+          content: const Text('Xác nhận đã đem món tới bàn?\nPhương thức: Tiền mặt'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Xác nhận'),
+            ),
+          ],
+        ),
+      );
+    }
 
     if (confirm == true) {
       setState(() => _isProcessing = true);
       try {
-        final updatedOrder = await _service.deliverToTable(widget.orderId);
+        final updatedOrder = await _service.deliverToTable(widget.orderId, paymentMethod: paymentMethod);
         setState(() {
           _order = updatedOrder;
           _isProcessing = false;
@@ -201,8 +307,9 @@ class _DineInOrderDetailPageState extends State<DineInOrderDetailPage> {
       } catch (e) {
         setState(() => _isProcessing = false);
         if (mounted) {
+          final errMsg = _getErrorMessage(e);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Lỗi: $e')),
+            SnackBar(content: Text('Lỗi: $errMsg')),
           );
         }
       }
@@ -246,8 +353,9 @@ class _DineInOrderDetailPageState extends State<DineInOrderDetailPage> {
       } catch (e) {
         setState(() => _isProcessing = false);
         if (mounted) {
+          final errMsg = _getErrorMessage(e);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Lỗi: $e')),
+            SnackBar(content: Text('Lỗi: $errMsg')),
           );
         }
       }
@@ -280,6 +388,9 @@ class _DineInOrderDetailPageState extends State<DineInOrderDetailPage> {
                       _buildInfoCard(),
                       const SizedBox(height: 16),
                       _buildOrderItems(),
+                      const SizedBox(height: 16),
+                      // Invoice print button (ask for invoice ID if unknown)
+                      // InvoiceButton(hoaDonId: null, label: 'In hóa đơn'),
                       const SizedBox(height: 16),
                       _buildActionButtons(),
                     ],
@@ -505,7 +616,7 @@ class _DineInOrderDetailPageState extends State<DineInOrderDetailPage> {
           ElevatedButton.icon(
             onPressed: _deliverToTable,
             icon: const Icon(Icons.delivery_dining),
-            label: const Text('Đã đem tới bàn'),
+            label: const Text('Hoàn thành đơn hàng'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
               minimumSize: const Size(double.infinity, 48),
@@ -584,5 +695,13 @@ class _DineInOrderDetailPageState extends State<DineInOrderDetailPage> {
       default:
         return Icons.info;
     }
+  }
+
+  // Helper: return a cleaned error message from an exception object.
+  // Removes leading 'Exception:' prefixes (case-insensitive) and trims whitespace.
+  String _getErrorMessage(Object e) {
+    var msg = e.toString();
+    msg = msg.replaceAll(RegExp(r'(?i)\bexception:\s*'), '');
+    return msg.trim();
   }
 }

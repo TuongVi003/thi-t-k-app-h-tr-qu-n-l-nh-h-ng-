@@ -36,7 +36,21 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    _initialize();
+    _ensureCleanConnection();
+  }
+
+  /// Force clean connection state before initializing
+  Future<void> _ensureCleanConnection() async {
+    print('[ChatScreen] 🧹 Ensuring clean connection state...');
+    
+    // ALWAYS disconnect any existing socket before initializing
+    await _chatService.disconnect();
+    
+    // ⭐ Wait a bit more for cleanup to complete
+    await Future.delayed(const Duration(milliseconds: 200));
+    
+    print('[ChatScreen] ✅ Clean state ensured, now initializing...');
+    await _initialize();
   }
 
   Future<void> _initialize() async {
@@ -44,9 +58,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
     try {
       // Lấy thông tin user hiện tại
+      print('[ChatScreen] 🔍 Fetching current user...');
       _currentUser = await UserService.instance.getCurrentUser();
       
       if (_currentUser == null) {
+        print('[ChatScreen] ❌ getCurrentUser returned NULL');
         setState(() {
           _errorMessage = 'Không thể lấy thông tin người dùng';
           _isLoading = false;
@@ -54,14 +70,20 @@ class _ChatScreenState extends State<ChatScreen> {
         return;
       }
 
-      // Kết nối Socket.IO
-      await _chatService.connect(_currentUser!.id);
+      print('[ChatScreen] ✅ Current user fetched:');
+      print('[ChatScreen]    ID: ${_currentUser!.id}');
+      print('[ChatScreen]    Name: ${_currentUser!.hoTen}');
+      print('[ChatScreen]    Phone: ${_currentUser!.soDienThoai}');
 
-      // Setup callbacks
-      _chatService.onNewMessage = _handleNewMessage;
-      _chatService.onError = _handleError;
-      _chatService.onConnectionChange = _handleConnectionChange;
-      _chatService.onTyping = _handleTyping;
+  // Setup callbacks BEFORE connecting so UI reacts to connection events
+  _chatService.onNewMessage = _handleNewMessage;
+  _chatService.onError = _handleError;
+  _chatService.onConnectionChange = _handleConnectionChange;
+  _chatService.onTyping = _handleTyping;
+
+  // Kết nối Socket.IO
+  print('[ChatScreen] 📞 Connecting socket with user ID: ${_currentUser!.id}');
+  await _chatService.connect(_currentUser!.id);
 
       // Lấy conversation
       _conversation = await _chatService.getMyConversation();
@@ -181,9 +203,15 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _isSending = true);
 
     try {
+      print('[ChatScreen] 📤 Preparing to send message...');
+      print('[ChatScreen]    Current user: ${_currentUser?.id} (${_currentUser?.hoTen})');
+      print('[ChatScreen]    Socket connected: ${_chatService.isConnected}');
+      
       // Nếu chưa có conversation, tạo mới
       if (_conversation == null) {
+        print('[ChatScreen] 🔍 No conversation found, fetching...');
         _conversation = await _chatService.getMyConversation();
+        print('[ChatScreen] Conversation: ${_conversation?.id}');
       }
 
       if (_conversation == null) {
@@ -206,11 +234,16 @@ class _ChatScreenState extends State<ChatScreen> {
       });
       _scrollToBottom();
 
-      // Gửi qua Socket.IO
-      _chatService.sendMessage(text);
+  print('[ChatScreen] 🚀 Sending message via Socket.IO...');
+  print('[ChatScreen]    Message: "$text"');
+  print('[ChatScreen]    Expected nguoi_goi_id: ${_currentUser!.id}');
 
-      setState(() => _isSending = false);
+  // Gửi qua Socket.IO and await result (keeps sending UI accurate)
+  await _chatService.sendMessage(text);
+
+  setState(() => _isSending = false);
     } catch (e) {
+      print('[ChatScreen] ❌ Error in _sendMessage: $e');
       _handleError('Lỗi gửi tin nhắn: $e');
       setState(() => _isSending = false);
     }
@@ -235,9 +268,10 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollController.dispose();
     _typingTimer?.cancel();
     _typingIndicatorTimer?.cancel();
-    // Clear callbacks and disconnect when leaving the screen to free resources
+    // Clear callbacks when leaving the screen
     _chatService.clearCallbacks();
-    _chatService.disconnect();
+    // DON'T disconnect here - let logout handle it
+    // This prevents issues when navigating back to chat screen
     super.dispose();
   }
 

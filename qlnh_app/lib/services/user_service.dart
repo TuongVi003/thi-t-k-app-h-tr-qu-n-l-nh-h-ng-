@@ -14,28 +14,32 @@ class UserService {
   Future<User?> getCurrentUser() async {
     try {
       if (!AuthService.instance.isLoggedIn) {
-        print('User not logged in');
+        print('[UserService] ❌ User not logged in');
         return null;
       }
 
+      print('[UserService] 🔐 Access token: ${AuthService.instance.accessToken?.substring(0, 20)}...');
+      
       final uri = Uri.parse(ApiEndpoints.userProfile);
       final response = await http.get(
         uri,
         headers: AuthService.instance.authHeaders,
       );
 
-      print('Get user profile status: ${response.statusCode}');
-      print('Get user profile response: ${response.body}');
+      print('[UserService] 📡 Get user profile status: ${response.statusCode}');
+      print('[UserService] 📦 Get user profile response: ${response.body}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
-        return User.fromJson(data);
+        final user = User.fromJson(data);
+        print('[UserService] ✅ User profile loaded: ID=${user.id}, Name=${user.hoTen}');
+        return user;
       } else {
-        print('Failed to fetch user profile: ${response.statusCode}');
+        print('[UserService] ❌ Failed to fetch user profile: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      print('Error fetching user profile: $e');
+      print('[UserService] ❌ Error fetching user profile: $e');
       return null;
     }
   }

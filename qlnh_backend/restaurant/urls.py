@@ -17,6 +17,8 @@ router.register('categories', views.DanhMucView, basename='category')
 router.register('about-us', views.AboutUsView, basename='about-us')
 router.register('tables-for-reservations', views.UserTableView, basename='tfr')
 router.register('statistics', views.StatisticsView, basename='statistics')
+router.register('hoadon', views.HoaDonView, basename='hoadon')
+router.register('notifications', views.NotificationView, basename='notification')
 
 # Chat endpoints
 router.register('conversations', ConversationViewSet, basename='conversation')
@@ -25,6 +27,7 @@ router.register('messages', ChatMessageViewSet, basename='message')
 
 urlpatterns = [
     path('fcm-token/', views.register_fcm_token, name='fcm-token'),
+    path('cleanup-socket/', views.cleanup_socket_sessions, name='cleanup-socket'),
     path('', include(router.urls)),
     
 ]

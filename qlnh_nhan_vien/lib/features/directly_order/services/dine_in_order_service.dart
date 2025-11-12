@@ -240,12 +240,12 @@ class DineInOrderService {
     } catch (e, stackTrace) {
       print('❌ [DineInOrderService] Exception: $e');
       print('📍 Stack trace: $stackTrace');
-      throw Exception('Lỗi kết nối: $e');
+      throw Exception('$e');
     }
   }
 
   // Đem món tới bàn
-  Future<DineInOrder> deliverToTable(int orderId) async {
+  Future<DineInOrder> deliverToTable(int orderId, {String? paymentMethod}) async {
     try {
       print('🚚 [DineInOrderService] Đem món tới bàn - đơn #$orderId');
       final token = await _getToken();
@@ -256,12 +256,16 @@ class DineInOrderService {
 
       print('🌐 [DineInOrderService] URL: $baseUrl/$orderId/deliver-to-table/');
       
+      final Map<String, dynamic>? _body = paymentMethod != null ? {'payment_method': paymentMethod} : null;
+      if (_body != null) print('📦 [DineInOrderService] Payment method: $paymentMethod');
+
       final response = await http.patch(
         Uri.parse('$baseUrl/$orderId/deliver-to-table/'),
         headers: {
           'Authorization': token,
           'Content-Type': 'application/json',
         },
+        body: _body != null ? json.encode(_body) : null,
       );
 
       print('📡 [DineInOrderService] Response status: ${response.statusCode}');

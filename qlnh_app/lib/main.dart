@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'presentations/screens/login_screen.dart';
+import 'presentations/screens/home_screen.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
 import 'constants/app_colors.dart';
@@ -18,6 +19,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+
+  // Initialize AuthService to load saved session
+  await AuthService.instance.initialize();
 
   // Initialize notification service
   await NotificationService.instance.initialize();

@@ -3,6 +3,7 @@ import '../models/takeaway_order.dart';
 import '../services/takeaway_service.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
+import 'package:qlnh_nhan_vien/widgets/invoice_button.dart';
 
 class TakeawayOrderDetailScreen extends StatefulWidget {
   final TakeawayOrder order;
@@ -454,7 +455,10 @@ class _TakeawayOrderDetailScreenState extends State<TakeawayOrderDetailScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 100), // Space for floating buttons
+                const SizedBox(height: 16),
+                // Invoice button: prompt for invoice id if unknown
+                // Center(child: InvoiceButton(hoaDonId: null, label: 'In hóa đơn')),
+                const SizedBox(height: 84), // Space for floating buttons (total ~100)
               ],
             ),
           ),

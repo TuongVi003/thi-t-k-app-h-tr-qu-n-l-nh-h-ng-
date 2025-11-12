@@ -189,23 +189,42 @@ class _ProfileTabState extends State<ProfileTab> {
                 // _buildMenuOption(Icons.help_outline, 'Hỗ trợ', () {}),
                 // _buildMenuOption(Icons.info_outline, 'Về chúng tôi', () {}),
                 const Divider(),
-                _buildMenuOption(Icons.logout, 'Đăng xuất', () {
+                _buildMenuOption(Icons.logout, 'Đăng xuất', () async {
                   if (AuthService.instance.isLoggedIn) {
-                    AuthService.instance.logout();
-                    setState(() {
-                      _currentUser = null;
-                    });
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    );
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã đăng xuất')));
+                    // CRITICAL: Wait for logout to complete
+                    await AuthService.instance.logout();
+                    
+                    // Update state
+                    if (mounted) {
+                      setState(() {
+                        _currentUser = null;
+                      });
+                    }
+                    
+                    // Navigate to login screen with mounted check
+                    if (mounted && context.mounted) {
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        (route) => false, // Remove all previous routes
+                      );
+                      
+                      // Show snackbar after navigation
+                      Future.delayed(const Duration(milliseconds: 300), () {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Đã đăng xuất'))
+                          );
+                        }
+                      });
+                    }
                   }
                   else {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    );
+                    if (mounted && context.mounted) {
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        (route) => false,
+                      );
+                    }
                   }
                 }, textColor: Colors.red),
               ],

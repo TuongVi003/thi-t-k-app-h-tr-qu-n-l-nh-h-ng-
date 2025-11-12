@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 from .models import NguoiDung, BanAn, DonHang, Order, ChiTietOrder, MonAn, DanhMuc, \
-AboutUs, KhachVangLai
+AboutUs, KhachVangLai, Notification
 from .utils import get_table_status, get_table_status_at, get_table_occupancy_info
 
 
@@ -14,7 +14,7 @@ class UserSerializer(ModelSerializer):
         u.save()
 
         return u
-
+ 
     class Meta:
         model = NguoiDung
         fields = '__all__'
@@ -222,6 +222,15 @@ class OrderSerializer(ModelSerializer):
     
     class Meta:
         model = Order
+        fields = '__all__'
+
+
+class HoaDonSerializer(ModelSerializer):
+    # nest OrderSerializer so the response includes order + its chi_tiet_order
+    order = OrderSerializer(read_only=True)
+
+    class Meta:
+        model = __import__('restaurant.models', fromlist=['HoaDon']).HoaDon
         fields = '__all__'
 
 
@@ -462,3 +471,11 @@ class HotlineReservationSerializer(ModelSerializer):
         fields = ['id', 'ban_an_id', 'ban_an', 'khach_ho_ten', 'khach_so_dien_thoai', 
                   'khach_vang_lai', 'ngay_dat', 'trang_thai']
         read_only_fields = ['id', 'ban_an', 'khach_vang_lai']
+
+
+class NotificationSerializer(ModelSerializer):
+    """Serializer for Notification model (returned to the owning user)."""
+    class Meta:
+        model = Notification
+        fields = ['id', 'title', 'message', 'image_url', 'created_at']
+        read_only_fields = ['id', 'title', 'message', 'image_url', 'created_at']

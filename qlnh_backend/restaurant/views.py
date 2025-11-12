@@ -19,9 +19,10 @@ from .utils import send_to_user, format_donhang_status  # import hàm gửi noti
 
 from restaurant.serializer import (BanAnForReservationSerializer, UserSerializer, BanAnSerializer, DonHangSerializer, 
                                   OrderSerializer, TakeawayOrderCreateSerializer, CustomerUserUpdateSerializer, 
-                                  OrderStatusUpdateSerializer, MonAnSerializer, DanhMucSerializer, AboutUsSerializer, HotlineReservationSerializer)
-from .models import DonHang, NguoiDung, BanAn, Order, MonAn, DanhMuc, FCMDevice, ChiTietOrder, AboutUs, HoaDon
-
+                                  OrderStatusUpdateSerializer, MonAnSerializer, DanhMucSerializer, AboutUsSerializer, HotlineReservationSerializer,
+                                  HoaDonSerializer, NotificationSerializer)
+from .models import DonHang, NguoiDung, BanAn, Order, MonAn, DanhMuc, FCMDevice, ChiTietOrder, AboutUs, HoaDon, Notification
+from restaurant.mail_service import send_order_completion_email
 
 
 class UserView(viewsets.ViewSet, generics.CreateAPIView, generics.UpdateAPIView):
@@ -223,24 +224,30 @@ class CustomTokenView(TokenView):
         print('CustomTokenView.post called:', dict(data).get('app_nhan_vien'))
         response = super().post(request, *args, **kwargs)
         
-        if not dict(data).get('app_nhan_vien'):
-            # Nếu yêu cầu đến từ app khách hàng
-            return response
-        
-        # nếu yêu cầu đến từ app nhân viên
+        # Kiểm tra token có được tạo thành công không
         if response.status_code == 200:
-            print('Token created successfully for employee app')
-            # Parse response để lấy user từ access_token
             try:
                 response_data = json.loads(response.content)
                 access_token = response_data.get('access_token')
                 if access_token:
                     token_obj = AccessToken.objects.get(token=access_token)
                     user = token_obj.user
+                    
                     if user.is_authenticated and hasattr(user, 'loai_nguoi_dung'):
-                        if user.loai_nguoi_dung == 'khach_hang':
-                            # Người dùng là khách hàng, không cho phép đăng nhập
-                            return JsonResponse({'error': 'Access denied for customer users'}, status=status.HTTP_401_UNAUTHORIZED)
+                        is_employee_app = dict(data).get('app_nhan_vien')
+                        
+                        if is_employee_app:
+                            # Nếu là app nhân viên, chỉ cho phép nhân viên đăng nhập
+                            if user.loai_nguoi_dung != 'nhan_vien':
+                                # Xóa token vừa tạo
+                                token_obj.delete()
+                                return JsonResponse({'error': 'Chỉ nhân viên mới được phép đăng nhập vào ứng dụng này'}, status=status.HTTP_401_UNAUTHORIZED)
+                        else:
+                            # Nếu là app khách hàng, chỉ cho phép khách hàng đăng nhập
+                            if user.loai_nguoi_dung != 'khach_hang':
+                                # Xóa token vừa tạo
+                                token_obj.delete()
+                                return JsonResponse({'error': 'Chỉ khách hàng mới được phép đăng nhập vào ứng dụng này'}, status=status.HTTP_401_UNAUTHORIZED)
                 else:
                     print('No access_token in response')
             except (json.JSONDecodeError, AccessToken.DoesNotExist) as e:
@@ -432,10 +439,14 @@ class TakeawayOrderView(viewsets.ModelViewSet):
                 order=order,
                 tong_tien=tong_tien,
                 phi_giao_hang=phi_giao_hang,
-                payment_method=pm  # Mặc định là tiền mặt, có thể thay đổi sau
+                payment_method=pm
             )
+
+            payment_qr = AboutUs.objects.filter(key='payment_qr').first()
             
-            send_to_user(order.khach_hang, "Đơn hàng hoàn thành", f"Đơn hàng #{order.id} của bạn đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ!")
+            # Gửi email thông báo đơn hàng hoàn thành
+            send_order_completion_email(order)
+            send_to_user(order.khach_hang, "Đơn hàng hoàn thành", f"Đơn hàng #{order.id} của bạn đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ!", { 'image_url': payment_qr.noi_dung if payment_qr else '' })
 
         serializer = self.get_serializer(order)
         return Response(serializer.data)
@@ -763,11 +774,12 @@ class DineInOrderView(viewsets.ModelViewSet):
         phi_giao_hang = Decimal('0.00')
         
         # Tạo hóa đơn
+        pm = request.data.get('payment_method')
         HoaDon.objects.create(
             order=order,
             tong_tien=tong_tien,
             phi_giao_hang=phi_giao_hang,
-            payment_method='cash'  # Mặc định là tiền mặt, có thể thay đổi sau
+            payment_method=pm  # Mặc định là tiền mặt, có thể thay đổi sau
         )
         
         serializer = self.get_serializer(order)
@@ -960,5 +972,44 @@ class StatisticsView(viewsets.ViewSet):
         })
 
 
+class HoaDonView(viewsets.ReadOnlyModelViewSet):
+    queryset = HoaDon.objects.all().select_related('order__khach_hang', 'order__nhan_vien', 'order__ban_an').prefetch_related('order__chitietorder_set__mon_an')
+    serializer_class = HoaDonSerializer
+    permission_classes = [IsAuthenticated]
+
+
+class NotificationView(viewsets.ReadOnlyModelViewSet):
+    """List notifications for the currently authenticated user."""
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return Notification.objects.filter(user=user).order_by('-id')
+
+
 def landing_page(request):
     return render(request, 'landing_page.html')
+
+
+@api_view(['POST'])
+def cleanup_socket_sessions(request):
+    """
+    Force cleanup socket sessions for current user (call this on logout)
+    """
+    from restaurant.socket_handlers import force_cleanup_user_sessions
+    
+    try:
+        user_id = request.user.id
+        cleaned_count = force_cleanup_user_sessions(user_id)
+        
+        return Response({
+            'success': True,
+            'message': f'Cleaned up {cleaned_count} socket sessions',
+            'user_id': user_id
+        }, status=200)
+    except Exception as e:
+        return Response({
+            'success': False,
+            'error': str(e)
+        }, status=500)

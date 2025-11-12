@@ -342,8 +342,8 @@ class ChatMessage(models.Model):
 
     def nguoi_goi_display(self):
         # Nếu nguoi_goi là nhân viên và conversation là staff_group => hiển thị chung "Nhân viên"
-        if self.conversation.is_staff_group and self.nguoi_goi and self.nguoi_goi.loai_nguoi_dung == 'nhan_vien':
-            return "Nhân viên"
+        # if self.conversation.is_staff_group and self.nguoi_goi and self.nguoi_goi.loai_nguoi_dung == 'nhan_vien':
+        #     return "Nhân viên"
         if self.nguoi_goi:
             return getattr(self.nguoi_goi, 'ho_ten', str(self.nguoi_goi))
         return "Không xác định"
@@ -358,3 +358,13 @@ class ChatMessage(models.Model):
 
     def __str__(self):
         return f"{self.nguoi_goi_display()} @ {self.thoi_gian}: {self.noi_dung[:30]}"
+    
+class Notification(models.Model):
+    user = models.ForeignKey(NguoiDung, on_delete=models.CASCADE, related_name='notifications')
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    image_url = models.CharField(max_length=255, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Notification #{self.id} for {self.user.ho_ten}"

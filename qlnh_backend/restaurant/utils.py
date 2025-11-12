@@ -1,4 +1,4 @@
-from .models import FCMDevice
+from .models import FCMDevice, Notification
 from firebase_admin import messaging
 
 def send_push_notification(token, title, body, data=None):
@@ -27,6 +27,8 @@ def send_to_user(user, title, body, data=None):
     Gửi notification đến tất cả thiết bị (token) của 1 user
     """
     tokens = FCMDevice.objects.filter(user=user).values_list("token", flat=True)
+    if user.loai_nguoi_dung == 'khach_hang':
+        Notification.objects.create(title=title, message=body, user=user, image_url=data.get('image_url') if data else None)
     for token in tokens:
         print(f"Sending notification to token: {token}")
         send_push_notification(token, title, body, data)

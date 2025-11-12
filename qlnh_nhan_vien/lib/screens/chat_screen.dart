@@ -73,6 +73,9 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
   }
 
   void _onNewMessage(ChatMessage message) {
+    // ✅ Check mounted trước khi setState
+    if (!mounted) return;
+    
     // Cập nhật conversation list khi có tin mới
     setState(() {
       final index = _conversations.indexWhere((c) => c.id == message.conversationId);
@@ -105,6 +108,9 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
 
   /// Handler for new_message that includes optional conversation payload
   void _onNewMessageWithConversation(ChatMessage message, Map<String, dynamic>? convData) {
+    // ✅ Check mounted trước khi setState
+    if (!mounted) return;
+    
     // Prefer using server-provided conversation payload to update/insert conversation
     setState(() {
       final convId = message.conversationId;
@@ -190,6 +196,9 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
   }
 
   void _onNewConversation(Conversation conversation) {
+    // ✅ Check mounted trước khi setState
+    if (!mounted) return;
+    
     // Thêm conversation mới vào đầu danh sách
     print('[ConversationsListScreen] 🆕 New conversation from customer ${conversation.customerId}');
     setState(() {
@@ -288,7 +297,7 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
   }
 
   Widget _buildConversationCard(Conversation conversation) {
-    print('[ConversationsListScreen] Building conversation card for ID ${conversation.customerInfo?.toJson()}');
+    print('Ten customer: ${conversation.lastMessage?.nguoiGoiName}');
     final customerName = conversation.lastMessage?.nguoiGoiName ?? 'Khách hàng';
     final lastMessage = conversation.lastMessage?.noiDung ?? 'Chưa có tin nhắn';
     final lastMessageTime = conversation.lastMessageAt;
@@ -377,6 +386,11 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
 
   @override
   void dispose() {
+    // ✅ Clear callbacks để tránh memory leak
+    _chatService.onNewMessage = null;
+    _chatService.onNewMessageWithConversation = null;
+    _chatService.onNewConversation = null;
+    
     // Không disconnect socket ở đây vì có thể dùng ở màn hình khác
     super.dispose();
   }
@@ -481,6 +495,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void _onNewMessage(ChatMessage message) {
     // Chỉ cập nhật nếu message thuộc conversation này
     if (message.conversationId == widget.conversation.id) {
+      // ✅ Check mounted trước khi setState
+      if (!mounted) return;
+      
       setState(() {
         // ✅ Kiểm tra duplicate bằng message ID
         final exists = _messages.any((m) => m.id == message.id);
@@ -493,7 +510,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
       // Auto scroll to bottom
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
+        if (mounted && _scrollController.hasClients) {
           _scrollController.animateTo(
             _scrollController.position.maxScrollExtent,
             duration: const Duration(milliseconds: 300),
@@ -505,6 +522,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   void _onUserTyping(Map<String, dynamic> data) {
+    // ✅ Check mounted trước khi xử lý
+    if (!mounted) return;
+    
     // Chỉ hiển thị typing indicator nếu là customer của conversation này đang gõ
     final typingUserId = data['user_id'];
     final isTyping = data['is_typing'] ?? false;
@@ -800,6 +820,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   @override
   void dispose() {
+    // Clear Socket.IO callbacks để tránh memory leak
+    _chatService.onNewMessage = null;
+    _chatService.onUserTyping = null;
+    
+    // Cancel timer và remove listeners
     _typingTimer?.cancel();
     _messageController.removeListener(_onTextChanged);
     _messageController.dispose();

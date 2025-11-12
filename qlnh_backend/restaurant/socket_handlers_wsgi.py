@@ -3,22 +3,108 @@ Socket.IO handlers cho tính năng chat (WSGI version cho eventlet)
 Xử lý real-time messaging giữa khách hàng và nhân viên
 """
 import socketio
+import eventlet
+import os
 from restaurant.models import Conversation, ChatMessage, NguoiDung, FCMDevice
+
+# Configurable maximum auth age (milliseconds). Increase if clients have clock skew or network delay.
+AUTH_MAX_AGE_MS = int(os.getenv('AUTH_MAX_AGE_MS', '30000'))  # default 30s
 
 # Tạo Socket.IO server instance cho WSGI (sync mode)
 sio = socketio.Server(
     async_mode='eventlet',
     cors_allowed_origins='*',  # Thay đổi theo domain của bạn trong production
     logger=True,
-    engineio_logger=True
+    engineio_logger=True,
+    # CRITICAL: Prevent reconnection with stale auth
+    ping_timeout=10,
+    ping_interval=5,
+    always_connect=True,
+    cookie=None,  # Force new session every time
 )
 
 # Track connected users: {sid: user_id}
 connected_users = {}
 
+# Track expected auth: {sid: {'user_id': int, 'timestamp': int}}
+expected_auth = {}
+
 # Room naming convention:
 # - Customer joins: f"customer_{customer_id}"
 # - Staff joins: "staff_room" + all f"customer_{id}" rooms
+
+
+def cleanup_session(sid):
+    """Helper to completely clean up a session"""
+    connected_users.pop(sid, None)
+    expected_auth.pop(sid, None)
+    print(f"[CLEANUP] Removed session {sid} from all tracking dicts")
+
+
+def _post_connect_setup(sid, user_id, timestamp, unique_id):
+    """Run DB lookups and room joins in background to avoid blocking connect()"""
+    try:
+        # Verify user exists in DB
+        user = NguoiDung.objects.get(id=user_id)
+
+        # expected_auth already set in connect(), no need to update here
+        print(f"[POST_CONNECT] ✅ Verified user {user.ho_ten} ({user_id}) for sid {sid}")
+
+        # Auto join rooms based on user type (can be slow, done in background)
+        if user.loai_nguoi_dung == 'khach_hang':
+            room = f"customer_{user_id}"
+            try:
+                sio.enter_room(sid, room)
+                print(f"[JOIN] Customer {user_id} joined room: {room}")
+            except Exception as e:
+                print(f"[POST_CONNECT] Error joining room {room}: {e}")
+
+        elif user.loai_nguoi_dung == 'nhan_vien':
+            try:
+                sio.enter_room(sid, 'staff_room')
+                print(f"[JOIN] Staff {user_id} joined staff_room")
+            except Exception as e:
+                print(f"[POST_CONNECT] Error joining staff_room: {e}")
+
+            # Join active customer rooms
+            try:
+                conversations = list(Conversation.objects.filter(is_staff_group=True).select_related('customer'))
+                for conv in conversations:
+                    if conv.customer:
+                        customer_room = f"customer_{conv.customer.id}"
+                        try:
+                            sio.enter_room(sid, customer_room)
+                            print(f"[JOIN] Staff {user_id} joined {customer_room}")
+                        except Exception:
+                            pass
+            except Exception as e:
+                print(f"[POST_CONNECT] Error fetching conversations: {e}")
+
+    except NguoiDung.DoesNotExist:
+        print(f"[POST_CONNECT] ❌ User {user_id} not found, cleaning up sid {sid}")
+        cleanup_session(sid)
+        try:
+            sio.disconnect(sid)
+        except Exception as e:
+            print(f"[POST_CONNECT] Error disconnecting sid {sid}: {e}")
+    except Exception as e:
+        print(f"[POST_CONNECT] Unexpected error for sid {sid}: {e}")
+        cleanup_session(sid)
+        try:
+            sio.disconnect(sid)
+        except Exception:
+            pass
+
+
+# Helper function to manually cleanup user sessions (called from views)
+def force_cleanup_user_sessions(user_id):
+    """Force cleanup all sessions for a specific user (called when user logs out)"""
+    sids_to_remove = [sid for sid, uid in connected_users.items() if uid == user_id]
+    for sid in sids_to_remove:
+        print(f"[FORCE_CLEANUP] Removing session {sid} for user {user_id}")
+        cleanup_session(sid)
+    print(f"[FORCE_CLEANUP] Cleaned up {len(sids_to_remove)} sessions for user {user_id}")
+    return len(sids_to_remove)
 
 
 @sio.event
@@ -27,53 +113,111 @@ def connect(sid, environ, auth):
     Xử lý khi client kết nối
     Auth payload: {'user_id': int, 'token': str (optional)}
     """
+    print(f"[CONNECT] ==================== NEW CONNECTION ====================")
+    print(f"[CONNECT] Socket ID: {sid}")
+    print(f"[CONNECT] Auth received: {auth}")
+    print(f"[CONNECT] Expected auth: {expected_auth.get(sid, 'NONE')}")
+    print(f"[CONNECT] Current connected_users: {connected_users}")
+    
+    # CRITICAL: Check if this is a stale reconnection
+    if sid not in expected_auth and sid in connected_users:
+        old_user_id = connected_users[sid]
+        new_user_id = auth.get('user_id') if auth else None
+        print(f"[CONNECT] 🚨 STALE SESSION DETECTED!")
+        print(f"[CONNECT] 🚨 SID {sid} has old user {old_user_id} but no expected_auth")
+        print(f"[CONNECT] 🚨 New auth claims user {new_user_id}")
+        print(f"[CONNECT] 🚨 REJECTING to force fresh connection")
+        cleanup_session(sid)
+        return False
+    
+    # CRITICAL: Always check if this sid was previously connected with a DIFFERENT user
+    if sid in connected_users:
+        old_user_id = connected_users[sid]
+        new_user_id = auth.get('user_id') if auth else None
+        if old_user_id != new_user_id:
+            print(f"[CONNECT] ⚠️ WARNING: SID {sid} was previously user {old_user_id}, now requesting {new_user_id}")
+            print(f"[CONNECT] 🧹 Cleaning up old connection...")
+            cleanup_session(sid)
     
     if not auth or 'user_id' not in auth:
-        print(f"[CONNECT] Rejected: No user_id in auth")
-        return False  # Từ chối kết nối
+        print(f"[CONNECT] ❌ Rejected: No user_id in auth")
+        cleanup_session(sid)
+        return False
     
     user_id = auth.get('user_id')
+    
+    # Extra validation: Check timestamp and unique_id
+    timestamp = auth.get('timestamp')
+    unique_id = auth.get('unique_id')
+    print(f"[CONNECT] Auth timestamp: {timestamp}, user_id: {user_id}, unique_id: {unique_id}")
+    
+    # CRITICAL: Check if auth is recent (within last 10 seconds)
+    if timestamp:
+        try:
+            import time
+            current_time = int(time.time() * 1000)
+            auth_age = current_time - int(timestamp)
+            print(f"[CONNECT] Auth age: {auth_age}ms")
+            
+            if auth_age > AUTH_MAX_AGE_MS:
+                print(f"[CONNECT] 🚨 AUTH TOO OLD! Age: {auth_age}ms > {AUTH_MAX_AGE_MS}ms")
+                print(f"[CONNECT] 🚨 REJECTING stale authentication")
+                cleanup_session(sid)
+                return False
+        except (ValueError, TypeError) as e:
+            print(f"[CONNECT] ⚠️ Could not validate timestamp: {e}")
+    
+    # Validate against expected_auth if exists
+    if sid in expected_auth:
+        expected = expected_auth[sid]
+        if expected['user_id'] != user_id:
+            print(f"[CONNECT] 🚨 MISMATCH! Expected user {expected['user_id']}, got {user_id}")
+            print(f"[CONNECT] 🚨 REJECTING connection")
+            cleanup_session(sid)
+            return False
+        print(f"[CONNECT] ✅ Auth matches expected user {user_id}")
+    
+    # Lightweight accept: set mapping and expected_auth IMMEDIATELY, defer DB/room work to background
     try:
-        # Verify user exists
-        user = NguoiDung.objects.get(id=user_id)
         connected_users[sid] = user_id
-        print(f"[CONNECT] User {user.ho_ten} ({user_id}) connected as {sid}")
-        
-        # Auto join rooms based on user type
-        if user.loai_nguoi_dung == 'khach_hang':
-            # Customer joins their own room
-            room = f"customer_{user_id}"
-            sio.enter_room(sid, room)
-            print(f"[JOIN] Customer {user_id} joined room: {room}")
-            
-        elif user.loai_nguoi_dung == 'nhan_vien':
-            # Staff joins staff room
-            sio.enter_room(sid, 'staff_room')
-            print(f"[JOIN] Staff {user_id} joined staff_room")
-            
-            # Staff also joins all active customer rooms (để nhận tin mới)
-            conversations = Conversation.objects.filter(is_staff_group=True).select_related('customer')
-            for conv in conversations:
-                if conv.customer:
-                    customer_room = f"customer_{conv.customer.id}"
-                    sio.enter_room(sid, customer_room)
-                    print(f"[JOIN] Staff {user_id} joined {customer_room}")
-        
+        # CRITICAL: Set expected_auth NOW (not in background) so send_message won't reject
+        expected_auth[sid] = {
+            'user_id': user_id,
+            'timestamp': timestamp,
+            'unique_id': unique_id,
+        }
+        print(f"[CONNECT] ↪ Accepted provisional mapping: connected_users['{sid}'] = {user_id}")
+        print(f"[CONNECT] ↪ Set expected_auth['{sid}'] = user {user_id}")
+        # Spawn background worker to verify user and perform room joins
+        try:
+            eventlet.spawn_n(_post_connect_setup, sid, user_id, timestamp, unique_id)
+        except Exception as e:
+            print(f"[CONNECT] ⚠️ Could not spawn background post-connect worker: {e}")
         return True
-        
-    except NguoiDung.DoesNotExist:
-        print(f"[CONNECT] Rejected: User {user_id} not found")
-        return False
     except Exception as e:
-        print(f"[CONNECT] Error: {e}")
+        print(f"[CONNECT] Error during provisional accept: {e}")
+        cleanup_session(sid)
         return False
 
 
 @sio.event
 def disconnect(sid):
     """Xử lý khi client ngắt kết nối"""
-    user_id = connected_users.pop(sid, None)
-    print(f"[DISCONNECT] Client {sid} (user {user_id}) disconnected")
+    user_id = connected_users.get(sid)
+    cleanup_session(sid)
+    
+    # CRITICAL: Force disconnect from server side
+    try:
+        sio.disconnect(sid)
+    except Exception as e:
+        print(f"[DISCONNECT] Error forcing disconnect: {e}")
+    
+    if user_id:
+        print(f"[DISCONNECT] ✅ Client {sid} (user {user_id}) disconnected and cleaned up")
+    else:
+        print(f"[DISCONNECT] ⚠️ Client {sid} disconnected but was NOT in connected_users dict")
+    print(f"[DISCONNECT] 📊 Remaining connected users: {len(connected_users)}")
+    print(f"[DISCONNECT] 📊 Remaining expected_auth: {len(expected_auth)}")
 
 
 @sio.event
@@ -89,6 +233,32 @@ def send_message(sid, data):
         user_id = connected_users.get(sid)
         print(f"[DEBUG] send_message - SID: {sid}, user_id from connected_users: {user_id}")
         print(f"[DEBUG] All connected_users: {connected_users}")
+        print(f"[DEBUG] All expected_auth: {expected_auth}")
+        
+        # CRITICAL: Validate this is not a stale session
+        if sid not in expected_auth:
+            print(f"[ERROR] 🚨 STALE SESSION! SID {sid} not in expected_auth but has user_id {user_id}")
+            print(f"[ERROR] 🚨 This means connect() was never called or was rejected")
+            print(f"[ERROR] 🚨 REJECTING message to force reconnection")
+            cleanup_session(sid)
+            sio.emit('error', {'message': 'Session expired. Please reconnect.'}, room=sid)
+            sio.disconnect(sid)
+            return
+        
+        # CRITICAL: Also validate timestamp is recent (within last 5 minutes)
+        expected = expected_auth[sid]
+        auth_timestamp = expected.get('timestamp')
+        if auth_timestamp:
+            import time
+            current_time = int(time.time() * 1000)
+            age_seconds = (current_time - auth_timestamp) / 1000
+            if age_seconds > 300:  # 5 minutes
+                print(f"[ERROR] 🚨 AUTH TOO OLD! SID {sid} auth is {age_seconds:.1f} seconds old")
+                print(f"[ERROR] 🚨 REJECTING to force fresh reconnection")
+                cleanup_session(sid)
+                sio.emit('error', {'message': 'Session expired. Please reconnect.'}, room=sid)
+                sio.disconnect(sid)
+                return
         
         if not user_id:
             sio.emit('error', {'message': 'Unauthorized'}, room=sid)

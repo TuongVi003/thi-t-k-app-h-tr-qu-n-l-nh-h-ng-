@@ -13,6 +13,7 @@ from decimal import Decimal
 
 class NguoiDungAdmin(UserAdmin):
     list_display = ('username', 'ho_ten', 'so_dien_thoai', 'loai_nguoi_dung', 'dang_lam_viec')
+    list_filter = ('loai_nguoi_dung', 'dang_lam_viec', )
     fieldsets = UserAdmin.fieldsets + (
         ('Thông tin bổ sung', {'fields': ('ho_ten', 'so_dien_thoai', 'loai_nguoi_dung', 'chuc_vu', 'ca_lam')}),
     )
