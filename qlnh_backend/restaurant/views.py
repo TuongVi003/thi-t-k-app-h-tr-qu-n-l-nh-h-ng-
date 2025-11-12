@@ -434,10 +434,16 @@ class TakeawayOrderView(viewsets.ModelViewSet):
                 phi_giao_hang = Decimal('0.00')
             
             pm = request.data.get('payment_method')
-            # Tạo hóa đơn
+            # Tạo hóa đơn: tổng phải bao gồm phí giao hàng
+            try:
+                total_amount = (tong_tien + phi_giao_hang).quantize(Decimal('0.01'))
+            except Exception:
+                # Fallback if quantize fails for some reason
+                total_amount = tong_tien + phi_giao_hang
+
             HoaDon.objects.create(
                 order=order,
-                tong_tien=tong_tien,
+                tong_tien=total_amount,
                 phi_giao_hang=phi_giao_hang,
                 payment_method=pm
             )
