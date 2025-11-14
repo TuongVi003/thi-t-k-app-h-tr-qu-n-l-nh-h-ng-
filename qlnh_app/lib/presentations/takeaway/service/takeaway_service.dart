@@ -166,4 +166,37 @@ class TakeawayService {
       throw Exception('Lỗi hủy đơn hàng: $e');
     }
   }
+
+  /// Xác nhận thanh toán cho đơn hàng
+  static Future<TakeawayOrder> confirmPayment(int orderId) async {
+    try {
+      final authService = AuthService.instance;
+
+      if (!authService.isLoggedIn || authService.accessToken == null) {
+        throw Exception('Vui lòng đăng nhập để xác nhận thanh toán');
+      }
+
+      final response = await http
+          .patch(
+            Uri.parse(ApiEndpoints.confirmPayment(orderId)),
+            headers: authService.authHeaders,
+          )
+          .timeout(const Duration(seconds: timeout));
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        // API trả về { "message": "...", "order": {...} }
+        final orderData = jsonData['order'] ?? jsonData;
+        return TakeawayOrder.fromJson(orderData);
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception(errorData['error'] ?? 'Không thể xác nhận thanh toán');
+      }
+    } catch (e) {
+      if (e is TimeoutException) {
+        throw Exception('Yêu cầu xác nhận thanh toán vượt quá thời gian chờ (${timeout}s). Vui lòng thử lại.');
+      }
+      throw Exception('Lỗi xác nhận thanh toán: $e');
+    }
+  }
 }

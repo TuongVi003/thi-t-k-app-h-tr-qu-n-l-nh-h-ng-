@@ -1,11 +1,11 @@
 
 
 class ApiEndpoints {
-  // static const String baseUrl = 'https://d9p0zhfk-8000.asse.devtunnels.ms';
-  static const String baseUrl = 'https://p61nc0b1-8000.asse.devtunnels.ms';
+  static const String baseUrl = 'https://d9p0zhfk-8000.asse.devtunnels.ms';
+  // static const String baseUrl = 'https://p61nc0b1-8000.asse.devtunnels.ms';
 
-  // static const String socketUrl = 'https://d9p0zhfk-8001.asse.devtunnels.ms';
-  static const String socketUrl = 'https://p61nc0b1-8001.asse.devtunnels.ms';
+  static const String socketUrl = 'https://d9p0zhfk-8001.asse.devtunnels.ms';
+  // static const String socketUrl = 'https://p61nc0b1-8001.asse.devtunnels.ms';
 
   static const String login = '$baseUrl/o/token/';
   static const String register = '$baseUrl/api/users/';
@@ -21,6 +21,7 @@ class ApiEndpoints {
   // Takeaway orders
   static const String takeawayOrders = '$baseUrl/api/takeaway/';
   static String getTakeawayOrder(int id) => '$baseUrl/api/takeaway/$id/';
+  static String confirmPayment(int id) => '$baseUrl/api/takeaway/$id/confirm-payment/';
   
   // User profile
   static const String userProfile = '$baseUrl/api/users/current-user/';

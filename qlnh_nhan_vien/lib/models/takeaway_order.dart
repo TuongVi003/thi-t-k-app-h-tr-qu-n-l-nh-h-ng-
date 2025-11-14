@@ -14,6 +14,7 @@ class TakeawayOrder {
   final NhanVienDetail? nhanVienDetail;
   final List<ChiTietOrder> chiTietOrder;
   final double tongTien;
+  final bool khachHangXacNhanThanhToan;
 
   TakeawayOrder({
     required this.id,
@@ -29,6 +30,7 @@ class TakeawayOrder {
     this.nhanVienDetail,
     required this.chiTietOrder,
     required this.tongTien,
+    this.khachHangXacNhanThanhToan = false,
   });
 
   factory TakeawayOrder.fromJson(Map<String, dynamic> json) {
@@ -53,6 +55,7 @@ class TakeawayOrder {
           .map((item) => ChiTietOrder.fromJson(item))
           .toList(),
       tongTien: SafeParser.toDouble(json['tong_tien']),
+      khachHangXacNhanThanhToan: json['khach_hang_xac_nhan_thanh_toan'] ?? false,
     );
   }
 

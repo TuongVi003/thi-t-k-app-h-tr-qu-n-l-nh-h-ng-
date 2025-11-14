@@ -324,6 +324,33 @@ class _OrderHistoryTabState extends State<OrderHistoryTab> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    order.khachHangXacNhanThanhToan == true
+                        ? Icons.check_circle
+                        : Icons.payment,
+                    size: 16,
+                    color: order.khachHangXacNhanThanhToan == true
+                        ? Colors.green
+                        : Colors.orange.shade700,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    order.khachHangXacNhanThanhToan == true
+                        ? 'Đã thanh toán'
+                        : 'Bạn chưa xác nhận thanh toán',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: order.khachHangXacNhanThanhToan == true
+                          ? Colors.green
+                          : Colors.orange.shade700,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -1,3 +1,4 @@
+
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer
 from .models import NguoiDung, BanAn, DonHang, Order, ChiTietOrder, MonAn, DanhMuc, \
@@ -251,6 +252,7 @@ class TakeawayOrderCreateSerializer(ModelSerializer):
     
     def create(self, validated_data):
         from django.utils import timezone
+        from datetime import timedelta
         
         mon_an_list = validated_data.pop('mon_an_list')
         
@@ -270,13 +272,13 @@ class TakeawayOrderCreateSerializer(ModelSerializer):
 
         print('Latitude:', validated_data.get('latitude'))
         print('Longitude:', validated_data.get('longitude'))
+        
         # Tạo order takeaway
         order = Order.objects.create(
             khach_hang=self.context['request'].user,
             loai_order='takeaway',
             trang_thai='pending',
             order_time=timezone.now(),
-
             **validated_data
         )
         
@@ -316,6 +318,7 @@ class StaffTakeawayOrderSerializer(ModelSerializer):
     
     def create(self, validated_data):
         from django.utils import timezone
+        from datetime import timedelta
         
         mon_an_list = validated_data.pop('mon_an_list')
         khach_ho_ten = validated_data.pop('khach_ho_ten', None)

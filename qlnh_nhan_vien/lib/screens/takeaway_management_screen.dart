@@ -606,6 +606,34 @@ class _TakeawayManagementScreenState extends State<TakeawayManagementScreen> wit
                 ],
               ),
 
+              // Payment confirmation status
+              if (order.khachHangXacNhanThanhToan) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade300, width: 1.5),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green.shade700, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Khách hàng đã xác nhận thanh toán',
+                        style: TextStyle(
+                          color: Colors.green.shade700,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               // Notes
               if (order.ghiChu != null && order.ghiChu!.isNotEmpty) ...[
                 const SizedBox(height: 8),

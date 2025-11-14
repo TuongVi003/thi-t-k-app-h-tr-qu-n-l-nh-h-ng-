@@ -9,6 +9,7 @@ class TakeawayOrder {
   final String loaiOrder;
   final List<TakeawayOrderItem> items;
   final double tongTien;
+  final bool? khachHangXacNhanThanhToan;
 
   TakeawayOrder({
     this.id,
@@ -21,6 +22,7 @@ class TakeawayOrder {
     required this.loaiOrder,
     required this.items,
     required this.tongTien,
+    this.khachHangXacNhanThanhToan,
   });
 
   factory TakeawayOrder.fromJson(Map<String, dynamic> json) {
@@ -47,6 +49,7 @@ class TakeawayOrder {
           .map((item) => TakeawayOrderItem.fromJson(item))
           .toList(),
       tongTien: (json['tong_tien'] as num?)?.toDouble() ?? 0.0,
+      khachHangXacNhanThanhToan: json['khach_hang_xac_nhan_thanh_toan'] as bool?,
     );
   }
 
@@ -68,6 +71,7 @@ class TakeawayOrder {
       'loai_order': loaiOrder,
       'chi_tiet_order': items.map((item) => item.toJson()).toList(),
       'tong_tien': tongTien,
+      'khach_hang_xac_nhan_thanh_toan': khachHangXacNhanThanhToan,
     };
   }
 

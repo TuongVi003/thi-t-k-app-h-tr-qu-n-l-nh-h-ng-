@@ -72,7 +72,10 @@ class _NotificationsTabState extends State<NotificationsTab> {
     );
   }
 
-  Widget _buildNotificationItem(NotificationModel notification) {
+  Widget _buildNotificationItem(NotificationModel notification, int index) {
+    // Calculate reverse index (first item gets highest number)
+    final displayNumber = _notifications.length - index;
+    
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       elevation: 2,
@@ -84,6 +87,26 @@ class _NotificationsTabState extends State<NotificationsTab> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Number badge on the left
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Center(
+                child: Text(
+                  '$displayNumber',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
             // Image on the left if available
             if (notification.imageUrl != null)
               GestureDetector(
@@ -223,7 +246,7 @@ class _NotificationsTabState extends State<NotificationsTab> {
         padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: _notifications.length,
         itemBuilder: (context, index) {
-          return _buildNotificationItem(_notifications[index]);
+          return _buildNotificationItem(_notifications[index], index);
         },
       ),
     );

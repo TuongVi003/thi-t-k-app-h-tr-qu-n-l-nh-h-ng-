@@ -149,8 +149,8 @@ def generate_order_completion_email(order):
         """
     
     # Thời gian
-    order_time = timezone.localtime(order.order_time)
-    completed_time = timezone.localtime(timezone.now())
+    order_time = order.order_time
+    completed_time = timezone.now()
     
     # Template HTML chính
     html_content = f"""

@@ -150,6 +150,7 @@ class Order(models.Model):
     latitude = models.DecimalField(max_digits=16, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=16, decimal_places=6, null=True, blank=True)
 
+    khach_hang_xac_nhan_thanh_toan = models.BooleanField(default=False, help_text="Khách hàng đã xác nhận thanh toán")
     def __str__(self):
         if self.loai_order == 'takeaway':
             return f'Takeaway Order #{self.id}'

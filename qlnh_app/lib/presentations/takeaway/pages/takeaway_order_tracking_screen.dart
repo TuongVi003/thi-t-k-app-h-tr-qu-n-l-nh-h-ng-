@@ -542,6 +542,59 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            const Divider(),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      _order!.khachHangXacNhanThanhToan == true
+                          ? Icons.check_circle
+                          : Icons.payment,
+                      size: 20,
+                      color: _order!.khachHangXacNhanThanhToan == true
+                          ? Colors.green
+                          : Colors.orange,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Trạng thái thanh toán',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _order!.khachHangXacNhanThanhToan == true
+                        ? Colors.green.withOpacity(0.1)
+                        : Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _order!.khachHangXacNhanThanhToan == true
+                          ? Colors.green
+                          : Colors.orange,
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    _order!.khachHangXacNhanThanhToan == true
+                        ? 'Đã thanh toán'
+                        : 'Bạn chưa xác nhận thanh toán',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: _order!.khachHangXacNhanThanhToan == true
+                          ? Colors.green
+                          : Colors.orange,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -583,9 +636,29 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
   Widget _buildActionButtons() {
     // Cho phép hủy khi pending hoặc confirmed (chưa bắt đầu nấu)
     final canCancel = _order!.trangThai == 'pending' || _order!.trangThai == 'confirmed';
+    // Cho phép xác nhận thanh toán khi chưa thanh toán và đơn hàng đã completed
+    final canConfirmPayment = _order!.khachHangXacNhanThanhToan != true;
     
     return Column(
       children: [
+        if (canConfirmPayment) ...[
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _isLoading ? null : () {
+                _showConfirmPaymentDialog();
+              },
+              icon: const Icon(Icons.payment),
+              label: const Text('Xác nhận đã thanh toán'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: AppColors.textWhite,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         if (canCancel) ...[
           SizedBox(
             width: double.infinity,
@@ -618,6 +691,59 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
           ),
         ),
       ],
+    );
+  }
+
+  void _showConfirmPaymentDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xác nhận thanh toán'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Bạn xác nhận đã thanh toán cho đơn hàng này?'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.successBackground,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 20, color: AppColors.success),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Xác nhận rằng bạn đã thanh toán đầy đủ',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _confirmPayment();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: AppColors.textWhite,
+            ),
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -672,6 +798,44 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
         ],
       ),
     );
+  }
+
+  Future<void> _confirmPayment() async {
+    try {
+      setState(() => _isLoading = true);
+      
+      // Gọi API xác nhận thanh toán
+      final updatedOrder = await TakeawayService.confirmPayment(_order!.id!);
+      
+      if (mounted) {
+        setState(() {
+          _order = updatedOrder;
+          _isLoading = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Xác nhận thanh toán thành công'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        
+        String errorMessage = e.toString();
+        errorMessage = errorMessage.replaceAll('Exception: Lỗi xác nhận thanh toán: Exception: ', '');
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _cancelOrder() async {

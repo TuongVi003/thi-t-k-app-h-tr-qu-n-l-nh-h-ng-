@@ -100,9 +100,15 @@ def get_table_status_at(obj, date):
     """
     from .models import DonHang, Order
     from django.utils import timezone
+    from datetime import datetime, date as date_type
 
-    # Use the provided date instead of today
-    date = timezone.localdate(date)
+    # Convert date parameter to date object
+    if isinstance(date, datetime):
+        date = timezone.localdate(date) if timezone.is_aware(date) else date.date()
+    elif isinstance(date, date_type):
+        pass  # already a date object
+    else:
+        date = timezone.localdate(date)
 
     # Check active reservations in DonHang
     active_reservations_donhang = DonHang.objects.filter(

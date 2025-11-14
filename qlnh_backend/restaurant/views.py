@@ -418,10 +418,11 @@ class TakeawayOrderView(viewsets.ModelViewSet):
         order.save()
 
         if new_status == 'ready':
+            payment_qr = AboutUs.objects.filter(key='payment_qr').first()
             if order.phuong_thuc_giao_hang == 'Giao hàng tận nơi':
-                send_to_user(order.khach_hang, "Món đã sẵn sàng", f"Đơn hàng #{order.id} của bạn đã sẵn sàng. Nhân viên sẽ giao đến địa chỉ: {order.dia_chi_giao_hang}")
+                send_to_user(order.khach_hang, "Món đã sẵn sàng", f"Đơn hàng #{order.id} của bạn đã sẵn sàng. Nhân viên sẽ giao đến địa chỉ: {order.dia_chi_giao_hang}", { 'image_url': payment_qr.noi_dung if payment_qr else '' })
             else:
-                send_to_user(order.khach_hang, "Món đã sẵn sàng", f"Đơn hàng #{order.id} của bạn đã sẵn sàng để lấy.")
+                send_to_user(order.khach_hang, "Món đã sẵn sàng", f"Đơn hàng #{order.id} của bạn đã sẵn sàng để lấy.", { 'image_url': payment_qr.noi_dung if payment_qr else '' })
         if new_status == 'completed':
             # Tạo hóa đơn
             from decimal import Decimal
@@ -447,12 +448,10 @@ class TakeawayOrderView(viewsets.ModelViewSet):
                 phi_giao_hang=phi_giao_hang,
                 payment_method=pm
             )
-
-            payment_qr = AboutUs.objects.filter(key='payment_qr').first()
             
-            # Gửi email thông báo đơn hàng hoàn thành
-            send_order_completion_email(order)
-            send_to_user(order.khach_hang, "Đơn hàng hoàn thành", f"Đơn hàng #{order.id} của bạn đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ!", { 'image_url': payment_qr.noi_dung if payment_qr else '' })
+            # Gửi thông báo cho khách hàng
+            send_to_user(order.khach_hang, "Đơn hàng hoàn thành", f"Đơn hàng #{order.id} của bạn đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ!")
+            send_order_completion_email(order)  # Gửi email thông báo đơn hàng hoàn thành
 
         serializer = self.get_serializer(order)
         return Response(serializer.data)
@@ -476,6 +475,40 @@ class TakeawayOrderView(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(order)
         return Response(serializer.data)
+    
+    @action(detail=True, methods=['patch'], url_path='confirm-payment')
+    def confirm_payment(self, request, pk=None):
+        """Khách hàng xác nhận đã thanh toán"""
+        try:
+            order = self.get_object()
+        except Order.DoesNotExist:
+            return Response({'error': 'Đơn hàng không tồn tại'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Chỉ khách hàng của đơn hàng mới có thể xác nhận
+        if order.khach_hang != request.user:
+            return Response({'error': 'Bạn không có quyền xác nhận thanh toán đơn hàng này'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Kiểm tra đã xác nhận chưa
+        if order.khach_hang_xac_nhan_thanh_toan:
+            return Response({'message': 'Đơn hàng đã được xác nhận thanh toán trước đó'}, status=status.HTTP_200_OK)
+        
+        order.khach_hang_xac_nhan_thanh_toan = True
+        order.save()
+        
+        serializer = self.get_serializer(order)
+
+        # Gửi thông báo cho nhân viên
+        employees = NguoiDung.objects.filter(loai_nguoi_dung='nhan_vien', dang_lam_viec=True)
+        for emp in employees:
+            send_to_user(
+                emp,
+                "Xác nhận thanh toán từ khách hàng",
+                f"Khách hàng {order.khach_hang.ho_ten} đã xác nhận thanh toán cho đơn hàng #{order.id}."
+            )
+        return Response({
+            'message': 'Xác nhận thanh toán thành công',
+            'order': serializer.data
+        }, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['post'], url_path='staff-create-order')
     def staff_create_order(self, request):
