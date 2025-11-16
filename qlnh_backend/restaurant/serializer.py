@@ -217,9 +217,52 @@ class OrderSerializer(ModelSerializer):
     khach_hang_detail = UserSerializer(source='khach_hang', read_only=True)
     nhan_vien_detail = UserSerializer(source='nhan_vien', read_only=True)
     tong_tien = serializers.SerializerMethodField()
+    phi_giao_hang = serializers.SerializerMethodField()
+    applied_promotions = serializers.SerializerMethodField()
     
     def get_tong_tien(self, obj):
         return sum([item.so_luong * item.gia for item in obj.chitietorder_set.all()])
+    
+    def get_phi_giao_hang(self, obj):
+        """Tính phí giao hàng cho đơn hàng"""
+        if obj.loai_order != 'takeaway':
+            return 0
+        fee = obj.calculate_shipping_fee()
+        if fee is None:
+            return 0
+        return float(fee)
+    
+    def get_applied_promotions(self, obj):
+        """Trả về danh sách khuyến mãi được áp dụng kèm giá trị giảm giá của từng khuyến mãi"""
+        from .khuyenmai_utils import discounted_price
+        from decimal import Decimal
+        
+        # Tính tổng tiền đơn hàng (không bao gồm phí ship)
+        tong_tien = sum(Decimal(str(item.gia)) * item.so_luong for item in obj.chitietorder_set.all())
+        
+        # Lấy danh sách khuyến mãi được áp dụng
+        _, applied_promotions = discounted_price(tong_tien)
+        
+        # Tính giá trị giảm giá của từng khuyến mãi
+        promotion_details = []
+        for promo in applied_promotions:
+            if promo.loai_giam_gia == 'percentage':
+                discount_value = float(tong_tien * (promo.gia_tri / 100))
+            elif promo.loai_giam_gia == 'fixed_amount':
+                discount_value = float(promo.gia_tri)
+            else:
+                discount_value = 0
+            
+            promotion_details.append({
+                'id': promo.id,
+                'ten_khuyen_mai': promo.ten_khuyen_mai,
+                'mo_ta': promo.mo_ta,
+                'loai_giam_gia': promo.loai_giam_gia,
+                'gia_tri': float(promo.gia_tri),
+                'discount_value': discount_value
+            })
+        
+        return promotion_details
     
     class Meta:
         model = Order
@@ -240,15 +283,72 @@ class TakeawayOrderCreateSerializer(ModelSerializer):
     mon_an_list = serializers.ListField(write_only=True)
     chi_tiet_order = ChiTietOrderSerializer(many=True, read_only=True, source='chitietorder_set')
     tong_tien = serializers.SerializerMethodField()
+    phi_giao_hang = serializers.SerializerMethodField()
+    tam_tinh = serializers.SerializerMethodField()
+    applied_promotions = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = ['id', 'ghi_chu', 'mon_an_list', 'thoi_gian_khach_lay', 
-                  'order_time', 'trang_thai', 'loai_order', 'chi_tiet_order', 'tong_tien',
+                  'order_time', 'trang_thai', 'loai_order', 'chi_tiet_order', 'tong_tien', 'phi_giao_hang', 'tam_tinh', 'applied_promotions',
                   'phuong_thuc_giao_hang', 'dia_chi_giao_hang', 'latitude', 'longitude']
     
     def get_tong_tien(self, obj):
         return sum([item.so_luong * item.gia for item in obj.chitietorder_set.all()])
+    
+    def get_phi_giao_hang(self, obj):
+        """Tính phí giao hàng cho đơn hàng"""
+        if obj.loai_order != 'takeaway':
+            return 0
+        fee = obj.calculate_shipping_fee()
+        if fee is None:
+            return 0
+        return float(fee)
+    
+    def get_tam_tinh(self, obj):
+        """Tính tổng tiền sau khi trừ các giảm giá (không bao gồm phí ship)"""
+        from .khuyenmai_utils import discounted_price
+        from decimal import Decimal
+        
+        # Tính tổng tiền đơn hàng (không bao gồm phí ship)
+        tong_tien = sum(Decimal(str(item.gia)) * item.so_luong for item in obj.chitietorder_set.all())
+        
+        # Áp dụng khuyến mãi
+        final_price, _ = discounted_price(tong_tien)
+        
+        return float(final_price)
+    
+    def get_applied_promotions(self, obj):
+        """Trả về danh sách khuyến mãi được áp dụng kèm giá trị giảm giá của từng khuyến mãi"""
+        from .khuyenmai_utils import discounted_price
+        from decimal import Decimal
+        
+        # Tính tổng tiền đơn hàng (không bao gồm phí ship)
+        tong_tien = sum(Decimal(str(item.gia)) * item.so_luong for item in obj.chitietorder_set.all())
+        
+        # Lấy danh sách khuyến mãi được áp dụng
+        _, applied_promotions = discounted_price(tong_tien)
+        
+        # Tính giá trị giảm giá của từng khuyến mãi
+        promotion_details = []
+        for promo in applied_promotions:
+            if promo.loai_giam_gia == 'percentage':
+                discount_value = float(tong_tien * (promo.gia_tri / 100))
+            elif promo.loai_giam_gia == 'fixed_amount':
+                discount_value = float(promo.gia_tri)
+            else:
+                discount_value = 0
+            
+            promotion_details.append({
+                'id': promo.id,
+                'ten_khuyen_mai': promo.ten_khuyen_mai,
+                'mo_ta': promo.mo_ta,
+                'loai_giam_gia': promo.loai_giam_gia,
+                'gia_tri': float(promo.gia_tri),
+                'discount_value': discount_value
+            })
+        
+        return promotion_details
     
     def create(self, validated_data):
         from django.utils import timezone
@@ -482,3 +582,10 @@ class NotificationSerializer(ModelSerializer):
         model = Notification
         fields = ['id', 'title', 'message', 'image_url', 'created_at']
         read_only_fields = ['id', 'title', 'message', 'image_url', 'created_at']
+
+
+class KhuyenMaiSerializer(ModelSerializer):
+    """Serializer for KhuyenMai model"""
+    class Meta:
+        model = __import__('restaurant.models', fromlist=['KhuyenMai']).KhuyenMai
+        fields = '__all__'

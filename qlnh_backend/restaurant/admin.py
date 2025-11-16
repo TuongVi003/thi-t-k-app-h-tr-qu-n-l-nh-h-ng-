@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import MonAn , DanhMuc, BanAn, DonHang, NguoiDung, Order, ChiTietOrder, \
-    AboutUs, HoaDon, Conversation, ChatMessage, NguyenLieu, KhachVangLai
+    AboutUs, HoaDon, Conversation, ChatMessage, NguyenLieu, KhachVangLai, KhuyenMai
 from django.urls import path
 from django.shortcuts import render
 from django.db.models import Sum, Count, Avg, Q, F
@@ -250,7 +250,6 @@ class ChatMessageAdmin(admin.ModelAdmin):
     noi_dung_preview.short_description = 'Nội dung'
 
 
-
 class StatisticsAdminSite(admin.AdminSite):
     """Custom Admin Site với trang thống kê"""
     
@@ -488,6 +487,63 @@ class StatisticsAdminSite(admin.AdminSite):
         return super().index(request, extra_context)
 
 
+class KhuyenMaiAdmin(admin.ModelAdmin):
+    list_display = ('ten_khuyen_mai', 'loai_giam_gia', 'gia_tri', 'ngay_bat_dau', 'ngay_ket_thuc', 'active', 'banner_image')
+    list_filter = ('loai_giam_gia', 'active', 'ngay_bat_dau', 'ngay_ket_thuc')
+    search_fields = ('ten_khuyen_mai', 'mo_ta')
+    readonly_fields = ('image_preview', 'banner_image')
+    
+    def get_form(self, request, obj=None, **kwargs):
+        from django import forms
+        
+        class KhuyenMaiAdminForm(forms.ModelForm):
+            image_upload = forms.FileField(
+                required=False,
+                label='Upload ảnh banner',
+                help_text='Chọn ảnh để upload (JPG, PNG, tối đa 5MB)'
+            )
+            
+            class Meta:
+                model = KhuyenMai
+                fields = '__all__'
+        
+        kwargs['form'] = KhuyenMaiAdminForm
+        return super().get_form(request, obj, **kwargs)
+    
+    def image_preview(self, obj):
+        if obj.banner_image:
+            from django.utils.html import format_html
+            return format_html(
+                '<img src="/images/{}" width="200" height="200" style="object-fit: cover;" /><br>Đường dẫn: {}',
+                obj.banner_image, obj.banner_image
+            )
+        return "Chưa có ảnh"
+    image_preview.short_description = "Xem trước ảnh banner"
+    
+    def save_model(self, request, obj, form, change):
+        # Xử lý upload ảnh
+        image_upload = form.cleaned_data.get('image_upload')
+        
+        if image_upload:
+            # Import các thư viện cần thiết
+            import os
+            from django.core.files.storage import default_storage
+            
+            # Tạo tên file unique
+            file_extension = os.path.splitext(image_upload.name)[1]
+            file_name = f"khuyen_mai_{obj.id if obj.id else 'new'}_{image_upload.name}"
+            
+            # Xóa ảnh cũ nếu có
+            if obj.banner_image and default_storage.exists(obj.banner_image):
+                default_storage.delete(obj.banner_image)
+            
+            # Lưu ảnh mới
+            file_path = default_storage.save(file_name, image_upload)
+            obj.banner_image = file_path
+        
+        super().save_model(request, obj, form, change)
+
+
 # Sử dụng custom admin site
 admin_site = StatisticsAdminSite(name='admin')
 admin.site = admin_site
@@ -502,3 +558,4 @@ admin.site.register(AboutUs, AboutUsAdmin)
 admin.site.register(HoaDon, HoaDonAdmin)
 admin.site.register(Conversation, ConversationAdmin)
 # admin.site.register(ChatMessage, ChatMessageAdmin)
+admin.site.register(KhuyenMai, KhuyenMaiAdmin)

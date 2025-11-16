@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:qlnh_app/models/cart_item.dart';
 import 'package:qlnh_app/models/takeaway_order.dart';
+import 'package:qlnh_app/models/khuyen_mai.dart';
 import 'package:qlnh_app/presentations/takeaway/service/takeaway_service.dart';
+import 'package:qlnh_app/services/khuyen_mai_service.dart';
 import 'package:qlnh_app/constants/app_colors.dart';
 import 'login_screen.dart';
 import 'package:qlnh_app/services/auth_service.dart';
@@ -32,11 +34,64 @@ class CartTab extends StatefulWidget {
 
 class _CartTabState extends State<CartTab> {
   final TextEditingController _noteController = TextEditingController();
+  List<KhuyenMai> _activePromotions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPromotions();
+  }
 
   @override
   void dispose() {
     _noteController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadPromotions() async {
+    try {
+      final promotions = await KhuyenMaiService.getActiveKhuyenMai();
+      if (mounted) {
+        setState(() {
+          _activePromotions = promotions;
+        });
+      }
+    } catch (e) {
+      print('Error loading promotions: $e');
+    }
+  }
+
+  Map<String, dynamic> _calculateDiscount(double originalPrice) {
+    if (_activePromotions.isEmpty) {
+      return {
+        'finalPrice': originalPrice,
+        'discountAmount': 0.0,
+        'appliedPromotions': <KhuyenMai>[],
+      };
+    }
+
+    double discountAmount = 0;
+    List<KhuyenMai> appliedPromotions = [];
+
+    for (var promo in _activePromotions) {
+      if (promo.loaiGiamGia == 'percentage') {
+        final value = double.parse(promo.giaTri);
+        discountAmount += originalPrice * (value / 100);
+        appliedPromotions.add(promo);
+      } else if (promo.loaiGiamGia == 'fixed_amount') {
+        final value = double.parse(promo.giaTri);
+        discountAmount += value;
+        appliedPromotions.add(promo);
+      }
+    }
+
+    final finalPrice = (originalPrice - discountAmount).clamp(0.0, double.infinity);
+
+    return {
+      'finalPrice': finalPrice,
+      'discountAmount': discountAmount,
+      'appliedPromotions': appliedPromotions,
+    };
   }
 
   Future<void> _handleCheckout(BuildContext context) async {
@@ -62,7 +117,7 @@ class _CartTabState extends State<CartTab> {
       firstDate: DateTime.now(),
       lastDate: DateTime(2040),
       initialDate: DateTime.now(),
-      helpText: '',  // Empty to hide default helpText
+      helpText: '', // Empty to hide default helpText
       builder: (context, child) {
         return Dialog(
           child: Column(
@@ -71,7 +126,8 @@ class _CartTabState extends State<CartTab> {
               // Custom large help text header
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [AppColors.accent, AppColors.accentDark],
@@ -130,9 +186,9 @@ class _CartTabState extends State<CartTab> {
         );
       },
     );
-    
+
     if (thoiGianLayMon == null || !context.mounted) return;
-    
+
     // Ensure user cannot pick a past time when the chosen date is today.
     final now = DateTime.now();
     final bool isToday = thoiGianLayMon.year == now.year &&
@@ -159,7 +215,8 @@ class _CartTabState extends State<CartTab> {
                 // Custom large help text header
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [AppColors.accent, AppColors.accentDark],
@@ -240,17 +297,23 @@ class _CartTabState extends State<CartTab> {
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text('Thời gian không hợp lệ'),
-            content: const Text('Bạn đã chọn giờ trong quá khứ. Vui lòng chọn giờ trong tương lai.'),
+            content: const Text(
+                'Bạn đã chọn giờ trong quá khứ. Vui lòng chọn giờ trong tương lai.'),
             actions: [
-              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Hủy')),
-              TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Chọn lại')),
+              TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: const Text('Hủy')),
+              TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  child: const Text('Chọn lại')),
             ],
           ),
         );
 
         if (retry == true) {
           // update initialTime to now+1min to help user pick a valid time
-          initialTime = TimeOfDay.fromDateTime(DateTime.now().add(const Duration(minutes: 1)));
+          initialTime = TimeOfDay.fromDateTime(
+              DateTime.now().add(const Duration(minutes: 1)));
           continue; // re-open time picker
         }
         return; // user cancelled
@@ -295,7 +358,9 @@ class _CartTabState extends State<CartTab> {
               ],
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.of(ctx).pop(null), child: const Text('Hủy')),
+              TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(null),
+                  child: const Text('Hủy')),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(selected),
                 child: const Text('Tiếp tục'),
@@ -384,10 +449,37 @@ class _CartTabState extends State<CartTab> {
       if (context.mounted) {
         Navigator.pop(context);
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi đặt hàng: ${e.toString()}'),
-            backgroundColor: Colors.red,
+        String errorMessage = 'Lỗi đặt hàng';
+        if (e.toString().contains('ClientException') || 
+            e.toString().contains('connection') ||
+            e.toString().contains('abort')) {
+          errorMessage = 'Mất kết nối với server. Vui lòng kiểm tra:\n'
+              '• Kết nối internet\n'
+              '• Server đang chạy\n'
+              '• URL backend đúng';
+        } else if (e.toString().contains('timeout')) {
+          errorMessage = 'Kết nối quá chậm. Vui lòng thử lại.';
+        } else {
+          errorMessage = 'Lỗi: ${e.toString()}';
+        }
+
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.error_outline, color: AppColors.error),
+                SizedBox(width: 8),
+                Text('Không thể đặt hàng'),
+              ],
+            ),
+            content: Text(errorMessage),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Đóng'),
+              ),
+            ],
           ),
         );
       }
@@ -476,150 +568,124 @@ class _CartTabState extends State<CartTab> {
             )
           else ...[
             Expanded(
-              child: ListView.builder(
-                itemCount: widget.cartItems.length,
-                itemBuilder: (context, index) {
-                  final cartItem = widget.cartItems[index];
-                  final item = cartItem.menuItem;
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Row(
-                        children: [
-                          if (cartItem.menuItem.imageUrl.isEmpty)
-                            Container(
-                              width: 60,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryVeryLight,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.restaurant,
-                                size: 30,
-                                color: AppColors.primary,
-                              ),
-                            )
-                          else
-                            Container(
-                              width: 60,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  Utils.imageUrl(cartItem.menuItem.imageUrl),
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      Container(
-                                    color: AppColors.primaryVeryLight,
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // Cart items list
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: widget.cartItems.length,
+                      itemBuilder: (context, index) {
+                        final cartItem = widget.cartItems[index];
+                        final item = cartItem.menuItem;
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Row(
+                              children: [
+                                if (cartItem.menuItem.imageUrl.isEmpty)
+                                  Container(
+                                    width: 60,
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primaryVeryLight,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
                                     child: const Icon(
                                       Icons.restaurant,
                                       size: 30,
                                       color: AppColors.primary,
                                     ),
+                                  )
+                                else
+                                  Container(
+                                    width: 60,
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.network(
+                                        Utils.imageUrl(cartItem.menuItem.imageUrl),
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) =>
+                                            Container(
+                                          color: AppColors.primaryVeryLight,
+                                          child: const Icon(
+                                            Icons.restaurant,
+                                            size: 30,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.name,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${item.price.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} ₫',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: AppColors.accent,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ),
-                            ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.name,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      onPressed: () => widget.onUpdateQuantity(
+                                          item.id, cartItem.quantity - 1),
+                                      icon: const Icon(Icons.remove_circle_outline),
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    Text(
+                                      cartItem.quantity.toString(),
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      onPressed: () => widget.onUpdateQuantity(
+                                          item.id, cartItem.quantity + 1),
+                                      icon: const Icon(Icons.add_circle_outline),
+                                      color: AppColors.primary,
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${item.price.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} ₫',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: AppColors.accent,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                IconButton(
+                                  onPressed: () => widget.onRemoveFromCart(item.id),
+                                  icon: const Icon(Icons.delete_outline),
+                                  color: AppColors.error,
                                 ),
                               ],
                             ),
                           ),
-                          Row(
-                            children: [
-                              IconButton(
-                                onPressed: () => widget.onUpdateQuantity(
-                                    item.id, cartItem.quantity - 1),
-                                icon: const Icon(Icons.remove_circle_outline),
-                                color: AppColors.textSecondary,
-                              ),
-                              Text(
-                                cartItem.quantity.toString(),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: () => widget.onUpdateQuantity(
-                                    item.id, cartItem.quantity + 1),
-                                icon: const Icon(Icons.add_circle_outline),
-                                color: AppColors.primary,
-                              ),
-                            ],
-                          ),
-                          IconButton(
-                            onPressed: () => widget.onRemoveFromCart(item.id),
-                            icon: const Icon(Icons.delete_outline),
-                            color: AppColors.error,
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
-            ),
 
-            // Note input
-            Card(
-              margin: const EdgeInsets.only(bottom: 16),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Ghi chú (tùy chọn)',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _noteController,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        hintText: 'Ví dụ: Không hành, ít cay, giao nhanh...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        contentPadding: const EdgeInsets.all(12),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+                    const SizedBox(height: 16),
 
-            // Total and checkout section
-            Container(
+                    // Total and checkout section
+                    Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.grey.shade50,
@@ -627,23 +693,150 @@ class _CartTabState extends State<CartTab> {
               ),
               child: Column(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Tổng cộng:',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                  // Note input
+                  Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Ghi chú (tùy chọn)',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: _noteController,
+                            maxLines: 2,
+                            style: const TextStyle(fontSize: 13),
+                            decoration: InputDecoration(
+                              hintText: 'Ví dụ: Không hành, ít cay...',
+                              hintStyle: const TextStyle(fontSize: 12),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              contentPadding: const EdgeInsets.all(10),
+                              isDense: true,
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        '${widget.totalPrice.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} ₫',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.accent,
-                        ),
+                    ),
+                  ),
+
+                  // Price breakdown
+                  Column(
+                    children: [
+                      // Original price
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Tạm tính:',
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            '${widget.totalPrice.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} ₫',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      // Promotions
+                      if (_activePromotions.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        ..._activePromotions.map((promo) {
+                          double discountValue = 0;
+                          if (promo.loaiGiamGia == 'percentage') {
+                            final percentage = double.parse(promo.giaTri);
+                            discountValue = widget.totalPrice * (percentage / 100);
+                          } else {
+                            discountValue = double.parse(promo.giaTri);
+                          }
+                          
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.local_offer,
+                                        size: 14,
+                                        color: AppColors.success,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          promo.tenKhuyenMai,
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            color: AppColors.success,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  '-${discountValue.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} ₫',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.success,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                        const SizedBox(height: 8),
+                        const Divider(height: 1),
+                        const SizedBox(height: 8),
+                      ],
+                      
+                      // Final price
+                      Builder(
+                        builder: (context) {
+                          final discountResult = _calculateDiscount(widget.totalPrice);
+                          final finalPrice = discountResult['finalPrice'] as double;
+                          
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Tổng cộng:',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                '${finalPrice.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} ₫',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.accent,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -670,6 +863,10 @@ class _CartTabState extends State<CartTab> {
                     ),
                   ),
                 ],
+              ),
+            ),
+                  ],
+                ),
               ),
             ),
           ],

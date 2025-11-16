@@ -17,6 +17,8 @@ class TakeawaySuccessScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tamtinh = order.tamTinh ?? 0.0;
+    final tongCong = tamtinh + (order.phiGiaoHang ?? 0.0);
     return Scaffold(
       backgroundColor: AppColors.successBackground,
       appBar: AppBar(
@@ -248,6 +250,130 @@ class TakeawaySuccessScreen extends StatelessWidget {
 
                             const Divider(),
 
+                            // Price breakdown
+                            if (order.tamTinh != null) ...[
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Tạm tính:',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${order.tamTinh!.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}đ',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                            ],
+                              // Show individual promotions if available
+                              if (order.appliedPromotions != null && order.appliedPromotions!.isNotEmpty) ...[
+                                ...order.appliedPromotions!.map((promo) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.local_offer,
+                                              size: 14,
+                                              color: AppColors.success,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Expanded(
+                                              child: Text(
+                                                promo.tenKhuyenMai,
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                  color: AppColors.success,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Text(
+                                        '-${promo.discountValue.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}đ',
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          color: AppColors.success,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )),
+                              ] else ...[
+                                // Fallback if no detailed promotions
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.local_offer,
+                                          size: 14,
+                                          color: AppColors.success,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Text(
+                                          'Giảm giá:',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: AppColors.success,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ],
+                              const SizedBox(height: 4),
+
+                            if (order.phiGiaoHang != null && order.phiGiaoHang! > 0) ...[
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.delivery_dining,
+                                        size: 14,
+                                        color: AppColors.accent,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      const Text(
+                                        'Phí giao hàng:',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Text(
+                                    '+${order.phiGiaoHang!.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}đ',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              const Divider(),
+                            ],
+
                             // Total
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -260,7 +386,7 @@ class TakeawaySuccessScreen extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  '${order.tongTien.toStringAsFixed(0)}đ',
+                                  '${tongCong}đ',
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,

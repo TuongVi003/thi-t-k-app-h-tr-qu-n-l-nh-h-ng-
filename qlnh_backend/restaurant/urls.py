@@ -19,6 +19,7 @@ router.register('tables-for-reservations', views.UserTableView, basename='tfr')
 router.register('statistics', views.StatisticsView, basename='statistics')
 router.register('hoadon', views.HoaDonView, basename='hoadon')
 router.register('notifications', views.NotificationView, basename='notification')
+router.register('khuyenmai', views.KhuyenMaiView, basename='khuyenmai')
 
 # Chat endpoints
 router.register('conversations', ConversationViewSet, basename='conversation')

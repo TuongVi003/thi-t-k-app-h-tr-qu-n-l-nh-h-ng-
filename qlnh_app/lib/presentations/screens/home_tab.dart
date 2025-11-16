@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import '../../models/about_us.dart';
+import '../../models/khuyen_mai.dart';
 import '../../services/about_service.dart';
+import '../../services/khuyen_mai_service.dart';
 import '../screens/reservation_screen.dart';
 import '../takeaway/pages/takeaway_order_screen.dart';
 import '../chat/chat_screen.dart';
@@ -16,6 +18,7 @@ class HomeTab extends StatefulWidget {
 
 class _HomeTabState extends State<HomeTab> {
   Map<String, AboutUs> _aboutUsMap = {};
+  List<KhuyenMai> _promotions = [];
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -23,6 +26,7 @@ class _HomeTabState extends State<HomeTab> {
   void initState() {
     super.initState();
     _loadAboutUsData();
+    _loadPromotions();
   }
 
   Future<void> _loadAboutUsData() async {
@@ -35,6 +39,8 @@ class _HomeTabState extends State<HomeTab> {
         };
         _isLoading = false;
       });
+      // Reload promotions when refreshing
+      _loadPromotions();
     } catch (e) {
       setState(() {
         _errorMessage = 'Không thể tải thông tin: $e';
@@ -43,119 +49,20 @@ class _HomeTabState extends State<HomeTab> {
     }
   }
 
-  String _getContent(String key) {
-    return _aboutUsMap[key]?.noiDung ?? '';
+  Future<void> _loadPromotions() async {
+    try {
+      final data = await KhuyenMaiService.getActiveKhuyenMai();
+      if (!mounted) return;
+      setState(() {
+        _promotions = data;
+      });
+    } catch (e) {
+      print('Error loading promotions: $e');
+    }
   }
 
-  Widget _buildOpeningHours() {
-    final openingHoursData = _aboutUsMap['gio_mo_cua'];
-    if (openingHoursData == null) return const SizedBox();
-
-    final jsonData = openingHoursData.parseJsonContent();
-    if (jsonData == null) return const SizedBox();
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.surface,
-            AppColors.primaryVeryLight.withOpacity(0.3),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: AppColors.primary.withOpacity(0.15),
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowLight,
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.primary,
-                      AppColors.primaryLight,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.access_time,
-                  color: AppColors.textWhite,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 16),
-              const Expanded(
-                child: Text(
-                  '🕐 Giờ mở cửa',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: AppColors.border,
-                width: 1,
-              ),
-            ),
-            child: Column(
-              children: [
-                _buildModernOpeningHourRow(
-                  Icons.calendar_today,
-                  'Thứ 2 - Thứ 6',
-                  jsonData['thu2_thu6'] ?? '',
-                  AppColors.primary,
-                ),
-                const SizedBox(height: 16),
-                const Divider(height: 1),
-                const SizedBox(height: 16),
-                _buildModernOpeningHourRow(
-                  Icons.weekend,
-                  'Thứ 7 - Chủ nhật',
-                  jsonData['thu7_cn'] ?? '',
-                  AppColors.accent,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  String _getContent(String key) {
+    return _aboutUsMap[key]?.noiDung ?? '';
   }
 
   Widget _buildModernOpeningHourRow(
@@ -557,6 +464,13 @@ class _HomeTabState extends State<HomeTab> {
               ),
             ),
 
+            // Promotions Section
+            if (_promotions.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(0, 0, 0, 20),
+                child: _buildPromotionsSection(),
+              ),
+
             // Welcome Section
             if (_aboutUsMap.containsKey('gioi_thieu_chung'))
               Padding(
@@ -818,6 +732,245 @@ class _HomeTabState extends State<HomeTab> {
         ],
       ),
     );
+  }
+
+  Widget _buildPromotionsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.error,
+                      Colors.deepOrange,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.error.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.local_offer,
+                  color: AppColors.textWhite,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '🎉 Ưu đãi khuyến mãi',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Cơ hội tuyệt vời dành cho bạn',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 300,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: _promotions.length,
+            itemBuilder: (context, index) {
+              final promotion = _promotions[index];
+              return _buildPromotionCard(promotion, index);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPromotionCard(KhuyenMai promotion, int index) {
+    final colors = [
+      [AppColors.error, Colors.deepOrange],
+      [AppColors.primary, AppColors.primaryLight],
+      [AppColors.accent, AppColors.accentLight],
+    ];
+    final colorPair = colors[index % colors.length];
+
+    return Container(
+      width: 320,
+      margin: EdgeInsets.only(right: index < _promotions.length - 1 ? 16 : 0),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colorPair[0].withOpacity(0.1),
+            colorPair[1].withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: colorPair[0].withOpacity(0.3),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorPair[0].withOpacity(0.15),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Banner Image
+          if (promotion.bannerImage != null)
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+              child: Image.network(
+                Utils.imageUrl(promotion.bannerImage!),
+                height: 140,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 140,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: colorPair,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.local_offer,
+                    size: 60,
+                    color: AppColors.textWhite,
+                  ),
+                ),
+              ),
+            ),
+          
+          // Discount Badge
+          Transform.translate(
+            offset: const Offset(12, -20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: colorPair,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: colorPair[0].withOpacity(0.4),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Text(
+                promotion.displayType,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textWhite,
+                ),
+              ),
+            ),
+          ),
+
+          // Content
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    promotion.tenKhuyenMai,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  Flexible(
+                    child: Text(
+                      promotion.moTa,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 16,
+                        color: colorPair[0],
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Đến ${_formatDate(promotion.ngayKetThuc)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colorPair[0],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
   Widget _buildFeaturesGrid() {

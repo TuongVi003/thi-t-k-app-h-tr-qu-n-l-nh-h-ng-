@@ -16,12 +16,13 @@ from datetime import datetime, timedelta
 from django.db.models import Sum, Count, Q, Avg, F
 from django.db.models.functions import TruncDate, TruncMonth
 from .utils import send_to_user, format_donhang_status  # import hàm gửi notification
+from .khuyenmai_utils import is_promotion_active, discounted_price
 
 from restaurant.serializer import (BanAnForReservationSerializer, UserSerializer, BanAnSerializer, DonHangSerializer, 
                                   OrderSerializer, TakeawayOrderCreateSerializer, CustomerUserUpdateSerializer, 
                                   OrderStatusUpdateSerializer, MonAnSerializer, DanhMucSerializer, AboutUsSerializer, HotlineReservationSerializer,
-                                  HoaDonSerializer, NotificationSerializer)
-from .models import DonHang, NguoiDung, BanAn, Order, MonAn, DanhMuc, FCMDevice, ChiTietOrder, AboutUs, HoaDon, Notification
+                                  HoaDonSerializer, NotificationSerializer, KhuyenMaiSerializer)
+from .models import DonHang, NguoiDung, BanAn, Order, MonAn, DanhMuc, FCMDevice, ChiTietOrder, AboutUs, HoaDon, Notification, KhuyenMai
 from restaurant.mail_service import send_order_completion_email
 
 
@@ -435,19 +436,23 @@ class TakeawayOrderView(viewsets.ModelViewSet):
                 phi_giao_hang = Decimal('0.00')
             
             pm = request.data.get('payment_method')
-            # Tạo hóa đơn: tổng phải bao gồm phí giao hàng
-            try:
-                total_amount = (tong_tien + phi_giao_hang).quantize(Decimal('0.01'))
-            except Exception:
-                # Fallback if quantize fails for some reason
-                total_amount = tong_tien + phi_giao_hang
-
-            HoaDon.objects.create(
+            # Tính khuyến mãi chỉ áp dụng cho tổng tiền đơn hàng (không bao gồm phí ship)
+            final_amount, applied_promotions = discounted_price(tong_tien)
+            gia_giam = tong_tien - final_amount
+            
+            # Tổng tiền cuối cùng = tiền sau giảm giá + phí giao hàng
+            tong_tien_cuoi_cung = final_amount + phi_giao_hang
+            
+            hoa_don = HoaDon.objects.create(
                 order=order,
-                tong_tien=total_amount,
+                tong_tien=tong_tien_cuoi_cung,
                 phi_giao_hang=phi_giao_hang,
-                payment_method=pm
+                payment_method=pm,
+                gia_giam=gia_giam,
             )
+            # Lưu các khuyến mãi đã áp dụng vào hóa đơn
+            if applied_promotions:
+                hoa_don.khuyen_mai.set(applied_promotions)
             
             # Gửi thông báo cho khách hàng
             send_to_user(order.khach_hang, "Đơn hàng hoàn thành", f"Đơn hàng #{order.id} của bạn đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ!")
@@ -814,12 +819,23 @@ class DineInOrderView(viewsets.ModelViewSet):
         
         # Tạo hóa đơn
         pm = request.data.get('payment_method')
-        HoaDon.objects.create(
+        # Tính khuyến mãi chỉ áp dụng cho tổng tiền đơn hàng
+        final_amount, applied_promotions = discounted_price(tong_tien)
+        gia_giam = tong_tien - final_amount
+        
+        # Tổng tiền cuối cùng = tiền sau giảm giá + phí giao hàng (dine-in thì phi_giao_hang = 0)
+        tong_tien_cuoi_cung = final_amount + phi_giao_hang
+        
+        hoa_don = HoaDon.objects.create(
             order=order,
-            tong_tien=tong_tien,
+            tong_tien=tong_tien_cuoi_cung,
             phi_giao_hang=phi_giao_hang,
-            payment_method=pm  # Mặc định là tiền mặt, có thể thay đổi sau
+            payment_method=pm,
+            gia_giam=gia_giam
         )
+        # Lưu các khuyến mãi đã áp dụng vào hóa đơn
+        if applied_promotions:
+            hoa_don.khuyen_mai.set(applied_promotions)
         
         serializer = self.get_serializer(order)
         return Response(serializer.data)
@@ -860,6 +876,9 @@ class MenuView(viewsets.ReadOnlyModelViewSet):
             self.queryset = self.queryset.filter(danh_muc__id=category)
 
         return super().list(request, *args, **kwargs)
+
+
+
 
 
 class DanhMucView(viewsets.ViewSet, generics.ListAPIView):
@@ -1025,6 +1044,21 @@ class NotificationView(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         user = self.request.user
         return Notification.objects.filter(user=user).order_by('-id')
+
+
+class KhuyenMaiView(viewsets.ReadOnlyModelViewSet):
+    """API lấy danh sách khuyến mãi đang hoạt động và trong thời gian áp dụng"""
+    serializer_class = KhuyenMaiSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        from django.utils import timezone
+        now = timezone.now()
+        return KhuyenMai.objects.filter(
+            active=True,
+            ngay_bat_dau__lte=now,
+            ngay_ket_thuc__gte=now
+        ).order_by('-ngay_bat_dau')
 
 
 def landing_page(request):

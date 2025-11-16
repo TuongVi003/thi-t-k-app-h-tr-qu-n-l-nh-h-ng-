@@ -241,6 +241,8 @@ class HoaDon(models.Model):
     phi_giao_hang = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Phí giao hàng (nếu có)")
     ngay_tao = models.DateTimeField(auto_now_add=True)
     payment_method = models.CharField(max_length=50, choices=(('cash', 'Tiền mặt'), ('card', 'Thẻ')))
+    gia_giam = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Tổng giá trị giảm giá (nếu có)")
+    khuyen_mai = models.ManyToManyField('KhuyenMai', blank=True, related_name='hoa_don', help_text="Khuyến mãi áp dụng cho hóa đơn này")
 
     def formatted_phi_giao_hang(self):
         """Return phi_giao_hang formatted for Vietnamese locale.
@@ -369,3 +371,17 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification #{self.id} for {self.user.ho_ten}"
+
+class KhuyenMai(models.Model):
+    ten_khuyen_mai = models.CharField(max_length=100)
+    mo_ta = models.TextField(blank=True, null=True)
+    loai_giam_gia = models.CharField(max_length=50, choices=(('percentage', 'Phần trăm'), ('fixed_amount', 'Số tiền cố định')))
+    gia_tri = models.DecimalField(max_digits=10, decimal_places=2)      # giá trị giảm giá (ví dụ: 10% hoặc 50000 VND)
+    ngay_bat_dau = models.DateTimeField()
+    ngay_ket_thuc = models.DateTimeField()
+    active = models.BooleanField(default=True)
+    banner_image = models.CharField(max_length=255, blank=True, null=True)
+
+    def __str__(self):
+        return f"Khuyến mãi: {self.ten_khuyen_mai} ({self.loai_giam_gia} - {self.gia_tri})"
+    

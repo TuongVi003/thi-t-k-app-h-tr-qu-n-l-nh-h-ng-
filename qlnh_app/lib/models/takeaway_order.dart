@@ -10,6 +10,9 @@ class TakeawayOrder {
   final List<TakeawayOrderItem> items;
   final double tongTien;
   final bool? khachHangXacNhanThanhToan;
+  final double? phiGiaoHang;
+  final double? tamTinh;
+  final List<AppliedPromotion>? appliedPromotions;
 
   TakeawayOrder({
     this.id,
@@ -23,6 +26,9 @@ class TakeawayOrder {
     required this.items,
     required this.tongTien,
     this.khachHangXacNhanThanhToan,
+    this.phiGiaoHang,
+    this.tamTinh,
+    this.appliedPromotions,
   });
 
   factory TakeawayOrder.fromJson(Map<String, dynamic> json) {
@@ -50,6 +56,11 @@ class TakeawayOrder {
           .toList(),
       tongTien: (json['tong_tien'] as num?)?.toDouble() ?? 0.0,
       khachHangXacNhanThanhToan: json['khach_hang_xac_nhan_thanh_toan'] as bool?,
+      phiGiaoHang: (json['phi_giao_hang'] as num?)?.toDouble(),
+      tamTinh: (json['tam_tinh'] as num?)?.toDouble(),
+      appliedPromotions: (json['applied_promotions'] as List?)
+          ?.map((promo) => AppliedPromotion.fromJson(promo))
+          .toList(),
     );
   }
 
@@ -72,6 +83,8 @@ class TakeawayOrder {
       'chi_tiet_order': items.map((item) => item.toJson()).toList(),
       'tong_tien': tongTien,
       'khach_hang_xac_nhan_thanh_toan': khachHangXacNhanThanhToan,
+      'phi_giao_hang': phiGiaoHang,
+      'tam_tinh': tamTinh,
     };
   }
 
@@ -169,5 +182,44 @@ class TakeawayCartItem {
       gia: gia,
       hinhAnh: hinhAnh,
     );
+  }
+}
+
+class AppliedPromotion {
+  final int id;
+  final String tenKhuyenMai;
+  final String moTa;
+  final String loaiGiamGia;
+  final double giaTri;
+  final double discountValue;
+
+  AppliedPromotion({
+    required this.id,
+    required this.tenKhuyenMai,
+    required this.moTa,
+    required this.loaiGiamGia,
+    required this.giaTri,
+    required this.discountValue,
+  });
+
+  factory AppliedPromotion.fromJson(Map<String, dynamic> json) {
+    return AppliedPromotion(
+      id: json['id'] as int,
+      tenKhuyenMai: json['ten_khuyen_mai'] as String,
+      moTa: json['mo_ta'] as String,
+      loaiGiamGia: json['loai_giam_gia'] as String,
+      giaTri: (json['gia_tri'] as num).toDouble(),
+      discountValue: (json['discount_value'] as num).toDouble(),
+    );
+  }
+
+  String get displayType {
+    if (loaiGiamGia == 'percentage') {
+      final value = giaTri == giaTri.toInt() ? giaTri.toInt().toString() : giaTri.toString();
+      return 'Giảm $value%';
+    } else {
+      final value = giaTri == giaTri.toInt() ? giaTri.toInt().toString() : giaTri.toString();
+      return 'Giảm ${value}đ';
+    }
   }
 }
