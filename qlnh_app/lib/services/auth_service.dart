@@ -5,6 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/api.dart';
 import 'chat_service.dart';
+import 'user_service.dart';
 
 class AuthService {
   AuthService._privateConstructor();
@@ -163,6 +164,24 @@ class AuthService {
           await _saveSession();
           // Register FCM token after successful login
           registerFcmToken();
+          
+          // ⭐ CRITICAL: Connect socket after successful login
+          print('[AuthService] 🔌 Connecting chat socket after login...');
+          try {
+            // Get user info to get user ID
+            final user = await UserService.instance.getCurrentUser();
+            if (user != null) {
+              print('[AuthService] 📞 Connecting socket for user ${user.id}');
+              await ChatService.instance.connect(user.id);
+              print('[AuthService] ✅ Socket connected successfully');
+            } else {
+              print('[AuthService] ⚠️ Could not get user info, socket not connected');
+            }
+          } catch (e) {
+            print('[AuthService] ⚠️ Error connecting socket: $e');
+            // Don\'t fail login if socket connection fails
+          }
+          
           return {'ok': true, 'message': 'OK'};
         }
         // Login failed - ensure state is cleared

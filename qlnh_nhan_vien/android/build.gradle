@@ -23,6 +23,21 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// Workaround: force an older BouncyCastle version or configure Java to use JDK 17
+// This helps avoid "Unsupported class file major version 65" errors when Jetifier
+// tries to transform bcprov-jdk18on-1.78.1.jar (compiled with a newer Java)
+// NOTE: Forcing BouncyCastle (example: 1.70) can break resolution if that
+// exact artifact doesn't exist in your repositories. The root cause of the
+// Jetifier "Unsupported class file major version 65" error is that some
+// dependencies (e.g. bcprov 1.78.1) were compiled for newer JDKs (Java 21).
+// Preferred solution: install JDK 17 and point Gradle to it using
+// `org.gradle.java.home` in `android/gradle.properties`.
+//
+// If you still need a dependency override, consider adding a targeted
+// `resolutionStrategy.eachDependency` entry or consult the plugin upstream
+// for a compatible release rather than forcing a possibly unavailable
+// artifact id/version.
+
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }

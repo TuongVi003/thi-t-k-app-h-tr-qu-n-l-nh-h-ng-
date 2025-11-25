@@ -10,7 +10,8 @@ class ConversationsListScreen extends StatefulWidget {
   const ConversationsListScreen({Key? key}) : super(key: key);
 
   @override
-  State<ConversationsListScreen> createState() => _ConversationsListScreenState();
+  State<ConversationsListScreen> createState() =>
+      _ConversationsListScreenState();
 }
 
 class _ConversationsListScreenState extends State<ConversationsListScreen> {
@@ -31,14 +32,18 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
       final user = await AuthService.getStoredUser();
       if (user != null) {
         await _chatService.connect(user.id);
-        
+
         // Lắng nghe tin nhắn mới
         _chatService.onNewMessage = _onNewMessage;
         // Lắng nghe tin nhắn có kèm conversation payload (realtime update)
-        _chatService.onNewMessageWithConversation = _onNewMessageWithConversation;
-        
+        _chatService.onNewMessageWithConversation =
+            _onNewMessageWithConversation;
+
         // Lắng nghe conversation mới
         _chatService.onNewConversation = _onNewConversation;
+
+        // ⭐ NEW: Lắng nghe conversation updated (khi có tin nhắn mới trong conversation đã tồn tại)
+        _chatService.onConversationUpdated = _onConversationUpdated;
       }
 
       // Load conversations
@@ -59,7 +64,7 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
       });
 
       final conversations = await _chatService.getConversations();
-      
+
       setState(() {
         _conversations = conversations;
         _isLoading = false;
@@ -75,18 +80,20 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
   void _onNewMessage(ChatMessage message) {
     // ✅ Check mounted trước khi setState
     if (!mounted) return;
-    
+
     // Cập nhật conversation list khi có tin mới
     setState(() {
-      final index = _conversations.indexWhere((c) => c.id == message.conversationId);
+      final index =
+          _conversations.indexWhere((c) => c.id == message.conversationId);
       if (index != -1) {
         // ✅ Kiểm tra xem message này đã được xử lý chưa (tránh duplicate)
         final currentLastMessage = _conversations[index].lastMessage;
         if (currentLastMessage != null && currentLastMessage.id == message.id) {
-          print('[ConversationsListScreen] ⚠️ Duplicate message ignored: ID ${message.id}');
+          print(
+              '[ConversationsListScreen] ⚠️ Duplicate message ignored: ID ${message.id}');
           return; // Đã xử lý rồi, bỏ qua
         }
-        
+
         // Cập nhật last message
         final updatedConv = Conversation(
           id: _conversations[index].id,
@@ -98,7 +105,7 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
           lastMessage: message,
           unreadCount: _conversations[index].unreadCount + 1,
         );
-        
+
         // Xóa conversation cũ và thêm lên đầu
         _conversations.removeAt(index);
         _conversations.insert(0, updatedConv);
@@ -107,10 +114,11 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
   }
 
   /// Handler for new_message that includes optional conversation payload
-  void _onNewMessageWithConversation(ChatMessage message, Map<String, dynamic>? convData) {
+  void _onNewMessageWithConversation(
+      ChatMessage message, Map<String, dynamic>? convData) {
     // ✅ Check mounted trước khi setState
     if (!mounted) return;
-    
+
     // Prefer using server-provided conversation payload to update/insert conversation
     setState(() {
       final convId = message.conversationId;
@@ -120,14 +128,21 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
       if (index != -1) {
         final currentLastMessage = _conversations[index].lastMessage;
         if (currentLastMessage != null && currentLastMessage.id == message.id) {
-          print('[ConversationsListScreen] ⚠️ Duplicate message ignored: ID ${message.id}');
+          print(
+              '[ConversationsListScreen] ⚠️ Duplicate message ignored: ID ${message.id}');
           return;
+        }
+
+        // ⭐ FIX: Update customerInfo from message.nguoiGoiInfo if sender is customer
+        CustomerInfo? updatedCustomerInfo = _conversations[index].customerInfo;
+        if (updatedCustomerInfo == null && message.nguoiGoiInfo != null) {
+          updatedCustomerInfo = message.nguoiGoiInfo;
         }
 
         final updatedConv = Conversation(
           id: _conversations[index].id,
           customerId: _conversations[index].customerId,
-          customerInfo: _conversations[index].customerInfo,
+          customerInfo: updatedCustomerInfo,  // ⭐ Use updated info
           isStaffGroup: _conversations[index].isStaffGroup,
           createdAt: _conversations[index].createdAt,
           lastMessageAt: message.thoiGian,
@@ -176,7 +191,8 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
           _conversations.insert(0, newConv);
           return;
         } catch (e) {
-          print('[ConversationsListScreen] ⚠️ Failed to build conversation from payload: $e');
+          print(
+              '[ConversationsListScreen] ⚠️ Failed to build conversation from payload: $e');
         }
       }
 
@@ -198,15 +214,16 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
   void _onNewConversation(Conversation conversation) {
     // ✅ Check mounted trước khi setState
     if (!mounted) return;
-    
+
     // Thêm conversation mới vào đầu danh sách
-    print('[ConversationsListScreen] 🆕 New conversation from customer ${conversation.customerId}');
+    print(
+        '[ConversationsListScreen] 🆕 New conversation from customer ${conversation.customerId}');
     setState(() {
       // Kiểm tra xem conversation đã có trong list chưa
       final exists = _conversations.any((c) => c.id == conversation.id);
       if (!exists) {
         _conversations.insert(0, conversation);
-        
+
         // Hiển thị notification
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -220,6 +237,112 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
       }
     });
   }
+
+  void _onConversationUpdated(Map<String, dynamic> data) {
+    if (!mounted) return;
+    
+    try {
+      final int convId = data['id'] ?? -1;
+      print('[ConversationsListScreen] 🔄 conversation_updated: Conv #$convId');
+      
+      setState(() {
+        final index = _conversations.indexWhere((c) => c.id == convId);
+        
+        // ✅ Parse last_message đầy đủ, kể cả nguoi_goi_info
+        ChatMessage? lastMsg;
+        if (data['last_message'] != null && data['last_message'] is Map<String, dynamic>) {
+          try {
+            lastMsg = ChatMessage.fromJson(data['last_message']);
+            print('[ConversationsListScreen] ✅ Parsed lastMsg: ${lastMsg.id} from ${lastMsg.nguoiGoiName}');
+          } catch (e) {
+            print('[ConversationsListScreen] ⚠️ Error parsing last_message: $e');
+          }
+        }
+        
+        if (index != -1) {
+          // ✅ TRƯỜNG HỢP 1: Conversation đã có trong list -> Cập nhật & Đẩy lên đầu
+          final currentConv = _conversations[index];
+          
+          // Tránh update trùng lặp (nếu message ID giống)
+          if (lastMsg != null && currentConv.lastMessage?.id == lastMsg.id) {
+            print('[ConversationsListScreen] ⏭️ Skip duplicate message ${lastMsg.id}');
+            return;
+          }
+          
+          // ✅ Update customerInfo từ data nếu có (server có thể gửi kèm)
+          CustomerInfo? updatedCustomerInfo = currentConv.customerInfo;
+          if (updatedCustomerInfo == null && lastMsg?.nguoiGoiInfo != null) {
+            updatedCustomerInfo = lastMsg!.nguoiGoiInfo;
+            print('[ConversationsListScreen] ✅ Updated customerInfo from message');
+          }
+          
+          final updatedConv = Conversation(
+            id: currentConv.id,
+            customerId: data['customer_id'] ?? currentConv.customerId,
+            customerInfo: updatedCustomerInfo,
+            isStaffGroup: currentConv.isStaffGroup,
+            createdAt: currentConv.createdAt,
+            lastMessageAt: (data['last_message_at'] != null)
+                ? (DateTime.tryParse(data['last_message_at']) ?? DateTime.now())
+                : (lastMsg?.thoiGian ?? currentConv.lastMessageAt),
+            lastMessage: lastMsg ?? currentConv.lastMessage,
+            unreadCount: currentConv.unreadCount + 1,
+          );
+          
+          _conversations.removeAt(index);
+          _conversations.insert(0, updatedConv);
+          print('[ConversationsListScreen] ✅ Updated Conv #$convId and moved to top');
+          
+        } else {
+          // ✅ TRƯỜNG HỢP 2: Conversation mới hoặc khách cũ quay lại
+          print('[ConversationsListScreen] ♻️ New or returning conversation #$convId');
+          
+          final customerId = data['customer_id'];
+          final customerName = data['customer_name'] ?? 'Khách hàng';
+          
+          // ✅ Tạo customerInfo từ last_message.nguoi_goi_info nếu có
+          CustomerInfo? customerInfo = lastMsg?.nguoiGoiInfo;
+          
+          // Fallback: Tạo từ dữ liệu Socket nếu không có
+          if (customerInfo == null && customerId != null) {
+            customerInfo = CustomerInfo(
+              id: customerId,
+              username: data['customer_phone'] ?? '',
+              hoTen: customerName,
+              loaiNguoiDung: 'khach_hang',
+            );
+          }
+          
+          final newConv = Conversation(
+            id: convId,
+            customerId: customerId,
+            customerInfo: customerInfo,
+            isStaffGroup: true,
+            createdAt: DateTime.now(),
+            lastMessageAt: (data['last_message_at'] != null)
+                ? (DateTime.tryParse(data['last_message_at']) ?? DateTime.now())
+                : DateTime.now(),
+            lastMessage: lastMsg,
+            unreadCount: 1,
+          );
+          
+          _conversations.insert(0, newConv);
+          print('[ConversationsListScreen] ✅ Created new Conv #$convId: $customerName');
+          
+          // Hiển thị notification
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('💬 Tin nhắn mới từ $customerName'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      });
+    } catch (e) {
+      print('[ConversationsListScreen] ❌ Error in _onConversationUpdated: $e');
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -289,7 +412,8 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
         itemCount: _conversations.length,
         itemBuilder: (context, index) {
           final conversation = _conversations[index];
-          print('[ConversationsListScreen] Building conversation card for ID ${conversation.toJson()}');
+          print(
+              '[ConversationsListScreen] Building conversation card for ID ${conversation.toJson()}');
           return _buildConversationCard(conversation);
         },
       ),
@@ -297,11 +421,31 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
   }
 
   Widget _buildConversationCard(Conversation conversation) {
-    print('Ten customer: ${conversation.lastMessage?.nguoiGoiName}');
-    final customerName = conversation.lastMessage?.nguoiGoiName ?? 'Khách hàng';
+    // ⭐ FIX: Ưu tiên lấy tên từ customerInfo hoặc từ nguoiGoiInfo nếu là khách hàng
+    String customerName = 'Khách hàng';
+    
+    if (conversation.customerInfo != null) {
+      // Có customerInfo từ API - ưu tiên nhất
+      customerName = conversation.customerInfo!.hoTen;
+    } else if (conversation.lastMessage?.nguoiGoiInfo != null) {
+      // Lấy từ nguoiGoiInfo của tin nhắn cuối (nếu là khách hàng)
+      final nguoiGoiInfo = conversation.lastMessage!.nguoiGoiInfo!;
+      if (nguoiGoiInfo.loaiNguoiDung == 'khach_hang') {
+        customerName = nguoiGoiInfo.hoTen;
+      } else if (conversation.customerId != null) {
+        // Tin nhắn cuối từ nhân viên, dùng customerId làm fallback
+        customerName = 'Khách hàng #${conversation.customerId}';
+      }
+    } else if (conversation.customerId != null) {
+      // Fallback cuối cùng
+      customerName = 'Khách hàng #${conversation.customerId}';
+    }
+    
     final lastMessage = conversation.lastMessage?.noiDung ?? 'Chưa có tin nhắn';
     final lastMessageTime = conversation.lastMessageAt;
     
+    print('[ConversationCard] ID: ${conversation.id}, Customer: $customerName, LastMsg: ${lastMessage.substring(0, lastMessage.length > 20 ? 20 : lastMessage.length)}...');
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: ListTile(
@@ -321,11 +465,11 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: conversation.unreadCount > 0 
-                ? Colors.black87 
+            color: conversation.unreadCount > 0
+                ? Colors.black87
                 : Colors.grey[600],
-            fontWeight: conversation.unreadCount > 0 
-                ? FontWeight.w500 
+            fontWeight: conversation.unreadCount > 0
+                ? FontWeight.w500
                 : FontWeight.normal,
           ),
         ),
@@ -390,7 +534,7 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
     _chatService.onNewMessage = null;
     _chatService.onNewMessageWithConversation = null;
     _chatService.onNewConversation = null;
-    
+    _chatService.onConversationUpdated = null;
     // Không disconnect socket ở đây vì có thể dùng ở màn hình khác
     super.dispose();
   }
@@ -413,16 +557,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final ChatService _chatService = ChatService();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  
+
   List<ChatMessage> _messages = [];
   bool _isLoading = true;
   bool _isSending = false;
   int? _currentUserId;
-  
+
   // Typing indicator state
   bool _isOtherUserTyping = false;
   String? _typingUserName;
-  
+
   // Typing timer
   Timer? _typingTimer;
 
@@ -430,35 +574,52 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void initState() {
     super.initState();
     _initializeChat();
-    
+
     // Listen to text changes to emit typing events
     _messageController.addListener(_onTextChanged);
   }
 
   Future<void> _initializeChat() async {
     try {
-      // Lấy user hiện tại
+      // 1. Lấy user hiện tại
       final user = await AuthService.getStoredUser();
-      _currentUserId = user?.id;
+      if (user == null) {
+        print('Error: User not found');
+        return;
+      }
+      _currentUserId = user.id;
 
-      // Join vào conversation này
+      // 2. FIX RACE CONDITION: Đảm bảo Socket đã kết nối trước khi thực hiện hành động
+      if (!_chatService.isConnected) {
+        print('[ChatDetailScreen] Socket chưa kết nối, đang kết nối lại...');
+        await _chatService.connect(user.id);
+
+        // QUAN TRỌNG: Chờ một chút để Socket hoàn tất handshake (bắt tay)
+        // Nếu không có dòng này, lệnh joinConversation ngay sau đó có thể bị fail do socket chưa ready
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+
+      // 3. Sau khi chắc chắn đã connect, mới Join vào conversation
       if (widget.conversation.customerId != null) {
+        print('[ChatDetailScreen] Joining conversation room...');
         _chatService.joinConversation(widget.conversation.customerId!);
       }
 
-      // Lắng nghe tin nhắn mới
+      // 4. Thiết lập lắng nghe sự kiện (Listeners)
+      // Lưu ý: Việc gán listener có thể làm bất cứ lúc nào, không cần chờ connect
       _chatService.onNewMessage = _onNewMessage;
-      
-      // Lắng nghe sự kiện typing
       _chatService.onUserTyping = _onUserTyping;
 
-      // Load messages
+      // 5. Load tin nhắn cũ từ API
       await _loadMessages();
     } catch (e) {
       print('Error initializing chat: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        // Kiểm tra mounted trước khi setState để tránh lỗi nếu user thoát màn hình nhanh
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -497,14 +658,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     if (message.conversationId == widget.conversation.id) {
       // ✅ Check mounted trước khi setState
       if (!mounted) return;
-      
+
       setState(() {
         // ✅ Kiểm tra duplicate bằng message ID
         final exists = _messages.any((m) => m.id == message.id);
         if (!exists) {
           _messages.add(message);
         } else {
-          print('[ChatDetailScreen] ⚠️ Duplicate message ignored: ID ${message.id}');
+          print(
+              '[ChatDetailScreen] ⚠️ Duplicate message ignored: ID ${message.id}');
         }
       });
 
@@ -524,14 +686,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void _onUserTyping(Map<String, dynamic> data) {
     // ✅ Check mounted trước khi xử lý
     if (!mounted) return;
-    
+
     // Chỉ hiển thị typing indicator nếu là customer của conversation này đang gõ
     final typingUserId = data['user_id'];
     final isTyping = data['is_typing'] ?? false;
     final userName = data['user_name'] ?? 'Khách hàng';
-    
+
     // Chỉ hiển thị nếu không phải là mình và là user của conversation này
-    if (typingUserId != _currentUserId && 
+    if (typingUserId != _currentUserId &&
         typingUserId == widget.conversation.customerId) {
       setState(() {
         _isOtherUserTyping = isTyping;
@@ -542,17 +704,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   void _onTextChanged() {
     final text = _messageController.text.trim();
-    
+
     if (text.isNotEmpty) {
       // User is typing, emit typing = true
       _chatService.sendTyping(
         isTyping: true,
         customerId: widget.conversation.customerId,
       );
-      
+
       // Cancel previous timer
       _typingTimer?.cancel();
-      
+
       // Set new timer to emit typing = false after 1 second of inactivity
       _typingTimer = Timer(const Duration(seconds: 1), () {
         _chatService.sendTyping(
@@ -594,7 +756,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final customerName = widget.conversation.customerInfo?.hoTen ?? 'Khách hàng';
+    final customerName =
+        widget.conversation.customerInfo?.hoTen ?? 'Khách hàng';
 
     return Scaffold(
       appBar: AppBar(
@@ -650,7 +813,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         },
                       ),
           ),
-          
+
           // Typing indicator
           if (_isOtherUserTyping)
             Container(
@@ -671,7 +834,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 ],
               ),
             ),
-          
+
           // Input area
           Container(
             decoration: BoxDecoration(
@@ -741,9 +904,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           maxWidth: MediaQuery.of(context).size.width * 0.7,
         ),
         decoration: BoxDecoration(
-          color: isMe 
-              ? Theme.of(context).primaryColor 
-              : Colors.grey[200],
+          color: isMe ? Theme.of(context).primaryColor : Colors.grey[200],
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -791,10 +952,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             duration: const Duration(milliseconds: 600),
             builder: (context, value, child) {
               final animationValue = (value + (index * 0.33)) % 1.0;
-              final opacity = (animationValue < 0.5 
-                  ? animationValue * 2 
+              final opacity = (animationValue < 0.5
+                  ? animationValue * 2
                   : (1.0 - animationValue) * 2);
-              
+
               return Opacity(
                 opacity: opacity.clamp(0.3, 1.0),
                 child: Container(
@@ -823,7 +984,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     // Clear Socket.IO callbacks để tránh memory leak
     _chatService.onNewMessage = null;
     _chatService.onUserTyping = null;
-    
+
     // Cancel timer và remove listeners
     _typingTimer?.cancel();
     _messageController.removeListener(_onTextChanged);

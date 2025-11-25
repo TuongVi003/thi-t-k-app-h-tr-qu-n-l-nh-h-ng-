@@ -232,14 +232,10 @@ def send_message(sid, data):
     try:
         user_id = connected_users.get(sid)
         print(f"[DEBUG] send_message - SID: {sid}, user_id from connected_users: {user_id}")
-        print(f"[DEBUG] All connected_users: {connected_users}")
-        print(f"[DEBUG] All expected_auth: {expected_auth}")
         
         # CRITICAL: Validate this is not a stale session
         if sid not in expected_auth:
             print(f"[ERROR] 🚨 STALE SESSION! SID {sid} not in expected_auth but has user_id {user_id}")
-            print(f"[ERROR] 🚨 This means connect() was never called or was rejected")
-            print(f"[ERROR] 🚨 REJECTING message to force reconnection")
             cleanup_session(sid)
             sio.emit('error', {'message': 'Session expired. Please reconnect.'}, room=sid)
             sio.disconnect(sid)
@@ -254,7 +250,6 @@ def send_message(sid, data):
             age_seconds = (current_time - auth_timestamp) / 1000
             if age_seconds > 300:  # 5 minutes
                 print(f"[ERROR] 🚨 AUTH TOO OLD! SID {sid} auth is {age_seconds:.1f} seconds old")
-                print(f"[ERROR] 🚨 REJECTING to force fresh reconnection")
                 cleanup_session(sid)
                 sio.emit('error', {'message': 'Session expired. Please reconnect.'}, room=sid)
                 sio.disconnect(sid)
@@ -265,7 +260,6 @@ def send_message(sid, data):
             return
         
         sender = NguoiDung.objects.get(id=user_id)
-        print(f"[DEBUG] Sender: {sender.id} - {sender.ho_ten} ({sender.loai_nguoi_dung})")
         noi_dung = data.get('noi_dung', '').strip()
         
         if not noi_dung:
@@ -276,7 +270,6 @@ def send_message(sid, data):
         if sender.loai_nguoi_dung == 'khach_hang':
             # Khách hàng gửi -> conversation của chính họ
             conv = Conversation.get_or_create_for_customer(sender)
-            print(f"[DEBUG] Customer {sender.id} -> Conversation {conv.id} (customer_id: {conv.customer_id})")
             target_room = 'staff_room'  # Gửi tới tất cả staff
             
         elif sender.loai_nguoi_dung == 'nhan_vien':
@@ -300,9 +293,12 @@ def send_message(sid, data):
             nguoi_goi=sender,
             noi_dung=noi_dung
         )
-        print(f"[DEBUG] Created message {message.id}: conversation_id={message.conversation_id}, nguoi_goi_id={message.nguoi_goi_id}")
         
-        # Prepare response data
+        # ⭐ CẬP NHẬT conversation last_message_at để sort đúng
+        conv.last_message_at = message.thoi_gian
+        conv.save(update_fields=['last_message_at'])
+        
+        # Prepare response data (cho tin nhắn chat bubble)
         message_data = {
             'id': message.id,
             'conversation_id': conv.id,
@@ -310,7 +306,6 @@ def send_message(sid, data):
             'nguoi_goi_name': message.nguoi_goi_display(),
             'noi_dung': message.noi_dung,
             'thoi_gian': message.thoi_gian.isoformat(),
-            # Thông tin conversation để update UI
             'conversation': {
                 'id': conv.id,
                 'customer_id': conv.customer_id,
@@ -320,17 +315,15 @@ def send_message(sid, data):
             }
         }
         
-        # Broadcast tin nhắn
+        # === BROADCAST LOGIC ===
         if sender.loai_nguoi_dung == 'khach_hang':
-            # Kiểm tra xem có phải conversation mới không (tin nhắn đầu tiên)
-            is_new_conversation = conv.messages.count() == 1  # Chỉ có 1 tin (tin vừa tạo)
+            is_new_conversation = conv.messages.count() == 1
             
-            # Gửi tới staff_room và room của chính customer (để customer thấy tin mình gửi)
+            # 1. Gửi tin nhắn (Bubble chat)
             sio.emit('new_message', message_data, room='staff_room')
             sio.emit('new_message', message_data, room=f"customer_{sender.id}")
-            print(f"[MESSAGE] Customer {sender.id} -> staff_room")
             
-            # Nếu là conversation mới, thông báo cho staff cập nhật conversation list
+            # 2. Nếu là hội thoại mới tinh, báo sự kiện tạo mới
             if is_new_conversation:
                 conversation_data = {
                     'id': conv.id,
@@ -344,18 +337,70 @@ def send_message(sid, data):
                     }
                 }
                 sio.emit('new_conversation', conversation_data, room='staff_room')
-                print(f"[NEW CONVERSATION] Customer {sender.id} created new conversation #{conv.id}")
+
+            # 3. [QUAN TRỌNG] Gửi event cập nhật danh sách (sort lên đầu) cho Staff
+            # Phần này trước đây bị thiếu, khiến tin nhắn từ khách cũ không update list
+            conversation_update_data = {
+                'id': conv.id,
+                'customer_id': sender.id,
+                'customer_name': sender.ho_ten,
+                'customer_phone': sender.so_dien_thoai,
+                'last_message_at': conv.last_message_at.isoformat() if conv.last_message_at else None,
+                'last_message': {
+                    'id': message.id,
+                    'conversation_id': conv.id,
+                    'nguoi_goi_id': sender.id,
+                    'nguoi_goi_name': message.nguoi_goi_display(),
+                    'noi_dung': message.noi_dung,
+                    'thoi_gian': message.thoi_gian.isoformat(),
+                    'nguoi_goi_info': {
+                        'id': sender.id,
+                        'username': sender.username,
+                        'ho_ten': sender.ho_ten,
+                        'loai_nguoi_dung': sender.loai_nguoi_dung,
+                        'chuc_vu': getattr(sender, 'chuc_vu', None),
+                    }
+                },
+                'is_new': is_new_conversation,
+            }
+            sio.emit('conversation_updated', conversation_update_data, room='staff_room')
+            print(f"[UPDATE] Sent conversation_updated to staff_room for Conv #{conv.id}")
             
-            # Gửi push notification tới staff
+            # 4. Gửi Push Notification
             send_push_to_staff(message)
             
-        else:  # staff
-            # Gửi tới room của customer và staff_room (để staff khác cũng thấy)
+        else:  # Staff gửi
+            # 1. Gửi tin nhắn
             sio.emit('new_message', message_data, room=target_room)
             sio.emit('new_message', message_data, room='staff_room')
-            print(f"[MESSAGE] Staff {sender.id} -> {target_room}")
             
-            # Gửi push notification tới customer
+            # 2. Gửi event cập nhật danh sách cho các staff khác
+            conversation_update_data = {
+                'id': conv.id,
+                'customer_id': customer_id,
+                'customer_name': customer.ho_ten,
+                'customer_phone': customer.so_dien_thoai,
+                'last_message_at': conv.last_message_at.isoformat() if conv.last_message_at else None,
+                'last_message': {
+                    'id': message.id,
+                    'conversation_id': conv.id,
+                    'nguoi_goi_id': sender.id,
+                    'nguoi_goi_name': message.nguoi_goi_display(),
+                    'noi_dung': message.noi_dung,
+                    'thoi_gian': message.thoi_gian.isoformat(),
+                    'nguoi_goi_info': {
+                        'id': sender.id,
+                        'username': sender.username,
+                        'ho_ten': sender.ho_ten,
+                        'loai_nguoi_dung': sender.loai_nguoi_dung,
+                        'chuc_vu': getattr(sender, 'chuc_vu', None),
+                    }
+                },
+                'is_new': False,
+            }
+            sio.emit('conversation_updated', conversation_update_data, room='staff_room')
+            
+            # 3. Gửi Push Notification
             send_push_to_customer(message, customer)
         
     except NguoiDung.DoesNotExist:
@@ -365,7 +410,6 @@ def send_message(sid, data):
         import traceback
         traceback.print_exc()
         sio.emit('error', {'message': str(e)}, room=sid)
-
 
 @sio.event
 def join_conversation(sid, data):

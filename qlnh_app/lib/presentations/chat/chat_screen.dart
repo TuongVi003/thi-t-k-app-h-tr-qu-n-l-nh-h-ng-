@@ -36,21 +36,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    _ensureCleanConnection();
-  }
-
-  /// Force clean connection state before initializing
-  Future<void> _ensureCleanConnection() async {
-    print('[ChatScreen] 🧹 Ensuring clean connection state...');
-    
-    // ALWAYS disconnect any existing socket before initializing
-    await _chatService.disconnect();
-    
-    // ⭐ Wait a bit more for cleanup to complete
-    await Future.delayed(const Duration(milliseconds: 200));
-    
-    print('[ChatScreen] ✅ Clean state ensured, now initializing...');
-    await _initialize();
+    _initialize();
   }
 
   Future<void> _initialize() async {
@@ -75,15 +61,14 @@ class _ChatScreenState extends State<ChatScreen> {
       print('[ChatScreen]    Name: ${_currentUser!.hoTen}');
       print('[ChatScreen]    Phone: ${_currentUser!.soDienThoai}');
 
-  // Setup callbacks BEFORE connecting so UI reacts to connection events
-  _chatService.onNewMessage = _handleNewMessage;
-  _chatService.onError = _handleError;
-  _chatService.onConnectionChange = _handleConnectionChange;
-  _chatService.onTyping = _handleTyping;
+      // Setup callbacks để nhận sự kiện từ socket
+      _chatService.onNewMessage = _handleNewMessage;
+      _chatService.onError = _handleError;
+      _chatService.onConnectionChange = _handleConnectionChange;
+      _chatService.onTyping = _handleTyping;
 
-  // Kết nối Socket.IO
-  print('[ChatScreen] 📞 Connecting socket with user ID: ${_currentUser!.id}');
-  await _chatService.connect(_currentUser!.id);
+      // Kiểm tra trạng thái kết nối hiện tại
+      setState(() => _isConnected = _chatService.isConnected);
 
       // Lấy conversation
       _conversation = await _chatService.getMyConversation();
@@ -268,10 +253,9 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollController.dispose();
     _typingTimer?.cancel();
     _typingIndicatorTimer?.cancel();
-    // Clear callbacks when leaving the screen
+    // Chỉ clear callbacks, không disconnect socket
+    // Socket được quản lý tập trung ở AuthService (connect khi login, disconnect khi logout)
     _chatService.clearCallbacks();
-    // DON'T disconnect here - let logout handle it
-    // This prevents issues when navigating back to chat screen
     super.dispose();
   }
 

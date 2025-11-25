@@ -125,10 +125,23 @@ OAUTH2_PROVIDER = {
 
 LANGUAGE_CODE = 'en-us'
 
+# Múi giờ mặc định của project (ở đây đặt theo Việt Nam: UTC+7).
+# - Nếu USE_TZ = False: Django sẽ dùng múi giờ này như tham chiếu cho các
+#   datetime "naive" (không có thông tin timezone) khi lưu và hiển thị.
+# - Nếu USE_TZ = True: Django lưu timestamp trong DB ở UTC, rồi khi hiển
+#   thị sẽ chuyển sang múi giờ này (hoặc timezone của user nếu được cấu hình).
 TIME_ZONE = 'Asia/Ho_Chi_Minh'
 
+# Bật tính năng quốc tế hóa (i18n) — cho phép dùng hệ thống dịch (gettext)
+# và các template tag như {% trans %}. Giữ True nếu muốn hỗ trợ đa ngôn ngữ.
 USE_I18N = True
 
+# Bật/tắt hỗ trợ timezone-aware datetimes.
+# - USE_TZ = True: Django dùng datetime có timezone (aware), lưu dữ liệu ở UTC
+#   trong DB và chuyển đổi theo TIME_ZONE khi hiển thị. Đây là best practice
+#   nếu ứng dụng có người dùng ở nhiều múi giờ hoặc production.
+# - USE_TZ = False: Django dùng datetime naive (không timezone) và tham chiếu
+#   theo TIME_ZONE;
 USE_TZ = False
 
 

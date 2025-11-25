@@ -88,8 +88,8 @@ class DonHangAdmin(admin.ModelAdmin):
 class OrderAdmin(admin.ModelAdmin):
     list_display = ('khach_hang', 'khach_vang_lai', 'nhan_vien', 'order_time', 'trang_thai', 'thoi_gian_lay', 'thoi_gian_san_sang')
 
+
 class HoaDonAdmin(admin.ModelAdmin):
-    # show formatted fee for Vietnamese users
     list_display = ('order', 'tong_tien', 'formatted_phi_giao_hang', 'payment_method', )
 
 
