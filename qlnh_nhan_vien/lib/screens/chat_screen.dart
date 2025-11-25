@@ -41,9 +41,9 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
 
         // Lắng nghe conversation mới
         _chatService.onNewConversation = _onNewConversation;
-
-        // ⭐ NEW: Lắng nghe conversation updated (khi có tin nhắn mới trong conversation đã tồn tại)
-        _chatService.onConversationUpdated = _onConversationUpdated;
+        
+        // ⭐ Chỉ lắng nghe update_conversation_list để cập nhật danh sách real-time
+        _chatService.onUpdateConversationList = _onUpdateConversationList;
       }
 
       // Load conversations
@@ -238,42 +238,51 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
     });
   }
 
-  void _onConversationUpdated(Map<String, dynamic> data) {
+  /// ⭐ Handler for update_conversation_list event - Real-time cập nhật danh sách
+  void _onUpdateConversationList(Map<String, dynamic> data) {
     if (!mounted) return;
     
     try {
       final int convId = data['id'] ?? -1;
-      print('[ConversationsListScreen] 🔄 conversation_updated: Conv #$convId');
+      final bool isNew = data['is_new'] ?? false;
+      print('[ConversationsListScreen] 📋 update_conversation_list: Conv #$convId (isNew: $isNew)');
       
       setState(() {
         final index = _conversations.indexWhere((c) => c.id == convId);
         
-        // ✅ Parse last_message đầy đủ, kể cả nguoi_goi_info
+        // Parse last_message
         ChatMessage? lastMsg;
         if (data['last_message'] != null && data['last_message'] is Map<String, dynamic>) {
           try {
             lastMsg = ChatMessage.fromJson(data['last_message']);
-            print('[ConversationsListScreen] ✅ Parsed lastMsg: ${lastMsg.id} from ${lastMsg.nguoiGoiName}');
           } catch (e) {
             print('[ConversationsListScreen] ⚠️ Error parsing last_message: $e');
           }
         }
         
         if (index != -1) {
-          // ✅ TRƯỜNG HỢP 1: Conversation đã có trong list -> Cập nhật & Đẩy lên đầu
+          // Conversation đã tồn tại -> Cập nhật & Đẩy lên đầu
           final currentConv = _conversations[index];
           
-          // Tránh update trùng lặp (nếu message ID giống)
+          // Tránh update trùng lặp
           if (lastMsg != null && currentConv.lastMessage?.id == lastMsg.id) {
-            print('[ConversationsListScreen] ⏭️ Skip duplicate message ${lastMsg.id}');
+            print('[ConversationsListScreen] ⚠️ Duplicate update ignored for Conv #$convId');
             return;
           }
           
-          // ✅ Update customerInfo từ data nếu có (server có thể gửi kèm)
+          // Update customerInfo từ server data hoặc message
           CustomerInfo? updatedCustomerInfo = currentConv.customerInfo;
-          if (updatedCustomerInfo == null && lastMsg?.nguoiGoiInfo != null) {
+          
+          // Ưu tiên lấy từ data server
+          if (data['customer_id'] != null && data['customer_name'] != null) {
+            updatedCustomerInfo = CustomerInfo(
+              id: data['customer_id'],
+              username: data['customer_phone'] ?? '',
+              hoTen: data['customer_name'],
+              loaiNguoiDung: 'khach_hang',
+            );
+          } else if (updatedCustomerInfo == null && lastMsg?.nguoiGoiInfo != null) {
             updatedCustomerInfo = lastMsg!.nguoiGoiInfo;
-            print('[ConversationsListScreen] ✅ Updated customerInfo from message');
           }
           
           final updatedConv = Conversation(
@@ -282,8 +291,8 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
             customerInfo: updatedCustomerInfo,
             isStaffGroup: currentConv.isStaffGroup,
             createdAt: currentConv.createdAt,
-            lastMessageAt: (data['last_message_at'] != null)
-                ? (DateTime.tryParse(data['last_message_at']) ?? DateTime.now())
+            lastMessageAt: data['last_message_at'] != null 
+                ? DateTime.parse(data['last_message_at']) 
                 : (lastMsg?.thoiGian ?? currentConv.lastMessageAt),
             lastMessage: lastMsg ?? currentConv.lastMessage,
             unreadCount: currentConv.unreadCount + 1,
@@ -291,20 +300,17 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
           
           _conversations.removeAt(index);
           _conversations.insert(0, updatedConv);
-          print('[ConversationsListScreen] ✅ Updated Conv #$convId and moved to top');
+          print('[ConversationsListScreen] ✅ Updated & reordered Conv #$convId to top');
           
-        } else {
-          // ✅ TRƯỜNG HỢP 2: Conversation mới hoặc khách cũ quay lại
-          print('[ConversationsListScreen] ♻️ New or returning conversation #$convId');
+        } else if (isNew) {
+          // Conversation mới -> Thêm vào đầu danh sách
+          print('[ConversationsListScreen] 🆕 Adding new conversation #$convId');
           
           final customerId = data['customer_id'];
           final customerName = data['customer_name'] ?? 'Khách hàng';
           
-          // ✅ Tạo customerInfo từ last_message.nguoi_goi_info nếu có
-          CustomerInfo? customerInfo = lastMsg?.nguoiGoiInfo;
-          
-          // Fallback: Tạo từ dữ liệu Socket nếu không có
-          if (customerInfo == null && customerId != null) {
+          CustomerInfo? customerInfo;
+          if (customerId != null) {
             customerInfo = CustomerInfo(
               id: customerId,
               username: data['customer_phone'] ?? '',
@@ -318,28 +324,32 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
             customerId: customerId,
             customerInfo: customerInfo,
             isStaffGroup: true,
-            createdAt: DateTime.now(),
-            lastMessageAt: (data['last_message_at'] != null)
-                ? (DateTime.tryParse(data['last_message_at']) ?? DateTime.now())
+            createdAt: data['created_at'] != null 
+                ? DateTime.parse(data['created_at']) 
+                : DateTime.now(),
+            lastMessageAt: data['last_message_at'] != null 
+                ? DateTime.parse(data['last_message_at']) 
                 : DateTime.now(),
             lastMessage: lastMsg,
             unreadCount: 1,
           );
           
           _conversations.insert(0, newConv);
-          print('[ConversationsListScreen] ✅ Created new Conv #$convId: $customerName');
           
-          // Hiển thị notification
+          // Hiển thị thông báo
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('💬 Tin nhắn mới từ $customerName'),
-              duration: const Duration(seconds: 2),
+              content: Text('🆕 Khách hàng mới: $customerName'),
+              duration: const Duration(seconds: 3),
+              backgroundColor: Colors.blue,
             ),
           );
+        } else {
+          print('[ConversationsListScreen] ⚠️ Conv #$convId not found and is_new=false, skipping');
         }
       });
     } catch (e) {
-      print('[ConversationsListScreen] ❌ Error in _onConversationUpdated: $e');
+      print('[ConversationsListScreen] ❌ Error in _onUpdateConversationList: $e');
     }
   }
 
@@ -534,7 +544,7 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
     _chatService.onNewMessage = null;
     _chatService.onNewMessageWithConversation = null;
     _chatService.onNewConversation = null;
-    _chatService.onConversationUpdated = null;
+    _chatService.onUpdateConversationList = null;
     // Không disconnect socket ở đây vì có thể dùng ở màn hình khác
     super.dispose();
   }

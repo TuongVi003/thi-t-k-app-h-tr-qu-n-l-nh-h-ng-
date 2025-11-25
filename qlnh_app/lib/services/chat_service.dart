@@ -288,6 +288,7 @@ class ChatService {
 
     final data = {
       'noi_dung': noiDung.trim(),
+      'user_id': _currentUserId,  // BẮT BUỘC: ID người gửi
       if (customerId != null) 'customer_id': customerId,
     };
 
@@ -295,53 +296,28 @@ class ChatService {
     print('[ChatService]    From user_id: $_currentUserId');
     print('[ChatService]    Socket ID: ${_socket!.id}');
     print('[ChatService]    Data: $data');
-    print('[ChatService]    Backend should use: connected_users[${_socket!.id}] = $_currentUserId');
+    print('[ChatService]    Backend will use user_id from payload: $_currentUserId');
     
-    // Emit via socket and wait briefly for server to echo back the message.
-    // If no echo within timeout, fallback to REST API to ensure message is persisted.
-    bool acked = false;
-
-    void ackHandler(dynamic payload) {
-      try {
-        if (payload is Map<String, dynamic>) {
-          final String serverText = (payload['noi_dung'] ?? '') as String;
-          final dynamic senderIdRaw = payload['nguoi_goi_id'] ?? payload['nguoi_goi'];
-          final int senderId = senderIdRaw is int ? senderIdRaw : int.tryParse('$senderIdRaw') ?? 0;
-          if (serverText.trim() == noiDung.trim() && senderId == (_currentUserId ?? 0)) {
-            acked = true;
-          }
-        }
-      } catch (e) {
-        // ignore parse errors
-      }
-    }
-
+    // ⚠️ CHỈ emit qua socket, KHÔNG dùng REST fallback
+    // Vì REST fallback sẽ tạo duplicate message trong DB
+    // Server đã nhận được tin nhắn nhưng customer không nhận lại (do fix trước đó)
+    // Tin nhắn sẽ được hiển thị từ placeholder trong UI
+    
     try {
-      _socket!.on('new_message', ackHandler);
       _socket!.emit('send_message', data);
-
-      // Wait short time for server broadcast to come back
-      await Future.delayed(const Duration(milliseconds: 900));
+      print('[ChatService] ✅ Message emitted via socket');
     } catch (e) {
-      print('[ChatService] Error emitting message: $e');
-    } finally {
-      try {
-        _socket!.off('new_message', ackHandler);
-      } catch (_) {}
-    }
-
-    if (!acked) {
-      print('[ChatService] ⚠️ No socket ack received, falling back to REST API');
+      print('[ChatService] ❌ Error emitting message: $e');
+      onError?.call('Lỗi gửi tin nhắn: $e');
+      
+      // CHỈ khi socket emit thất bại hoàn toàn mới dùng REST
       if (_currentConversation != null) {
         final fallback = await sendMessageViaApi(_currentConversation!.id, noiDung.trim());
         if (fallback != null) {
-          // Notify UI with server-confirmed message
           onNewMessage?.call(fallback);
         } else {
-          onError?.call('Không gửi được tin nhắn (socket và REST đều lỗi)');
+          onError?.call('Không gửi được tin nhắn');
         }
-      } else {
-        onError?.call('Không có conversation để gửi qua REST');
       }
     }
   }

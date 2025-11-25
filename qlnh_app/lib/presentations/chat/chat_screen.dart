@@ -95,21 +95,26 @@ class _ChatScreenState extends State<ChatScreen> {
     if (!mounted) return;
     setState(() {
       // Nếu đã có message cùng id (server đã gửi trước) thì bỏ
-      final existsById = _messages.any((m) => m.id == message.id);
-      if (existsById) return;
+      final existsById = _messages.any((m) => m.id == message.id && m.id > 0);
+      if (existsById) {
+        print('[ChatScreen] ⏭️ Message ${message.id} already exists, skipping');
+        return;
+      }
 
       // Nếu đây là message gửi bởi chính client, tìm placeholder tạm
       // Placeholder messages use negative ids (see ChatMessage.temporary)
-      if (message.isSentByMe) {
+      if (message.nguoiGoiId == _currentUser?.id) {
         final tempIndex = _messages.indexWhere((m) => m.id < 0 && m.nguoiGoiId == message.nguoiGoiId && m.noiDung == message.noiDung);
         if (tempIndex != -1) {
           // Thay thế placeholder bằng message thật từ server (giữ vị trí)
+          print('[ChatScreen] 🔄 Replacing placeholder at index $tempIndex with real message ${message.id}');
           _messages[tempIndex] = message;
           return;
         }
       }
 
-      // Thêm message mới vào danh sách
+      // Thêm message mới vào danh sách (bao gồm cả tin từ nhân viên)
+      print('[ChatScreen] ✅ Adding new message ${message.id} from ${message.nguoiGoiDisplay}');
       _messages.add(message);
     });
     

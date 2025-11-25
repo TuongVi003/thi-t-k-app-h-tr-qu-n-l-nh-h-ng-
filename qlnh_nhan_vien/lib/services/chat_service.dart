@@ -20,6 +20,8 @@ class ChatService {
   Function(Conversation)? onNewConversation;  // Thêm callback cho conversation mới
   /// ⭐ NEW: Callback khi conversation được cập nhật (có tin nhắn mới)
   Function(Map<String, dynamic>)? onConversationUpdated;
+  /// ⭐ NEW: Callback khi nhận event update_conversation_list từ server
+  Function(Map<String, dynamic>)? onUpdateConversationList;
   Function(Map<String, dynamic>)? onUserTyping;
   Function(String)? onError;
   Function()? onConnect;
@@ -117,6 +119,23 @@ class ChatService {
           }
         } catch (e) {
           print('[ChatService] ⚠️ Error handling conversation update: $e');
+        }
+      });
+
+      // ⭐ NEW: Listen for update_conversation_list event (for staff conversation list updates)
+      _socket!.on('update_conversation_list', (data) {
+        print('[ChatService] 📋 Update conversation list: $data');
+        try {
+          if (data is Map<String, dynamic>) {
+            onUpdateConversationList?.call(data);
+          } else if (data is Map) {
+            final convertedData = Map<String, dynamic>.from(data);
+            onUpdateConversationList?.call(convertedData);
+          } else {
+            print('[ChatService] ⚠️ update_conversation_list data is not a Map: ${data.runtimeType}');
+          }
+        } catch (e) {
+          print('[ChatService] ⚠️ Error handling update_conversation_list: $e');
         }
       });
 
