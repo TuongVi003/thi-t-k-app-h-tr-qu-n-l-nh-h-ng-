@@ -21,7 +21,7 @@ from .khuyenmai_utils import is_promotion_active, discounted_price
 from restaurant.serializer import (BanAnForReservationSerializer, UserSerializer, BanAnSerializer, DonHangSerializer, 
                                   OrderSerializer, TakeawayOrderCreateSerializer, CustomerUserUpdateSerializer, 
                                   OrderStatusUpdateSerializer, MonAnSerializer, DanhMucSerializer, AboutUsSerializer, HotlineReservationSerializer,
-                                  HoaDonSerializer, NotificationSerializer, KhuyenMaiSerializer)
+                                  HoaDonSerializer, HoaDonDetailSerializer, NotificationSerializer, KhuyenMaiSerializer)
 from .models import DonHang, NguoiDung, BanAn, Order, MonAn, DanhMuc, FCMDevice, ChiTietOrder, AboutUs, HoaDon, Notification, KhuyenMai
 from restaurant.mail_service import send_order_completion_email
 
@@ -437,7 +437,7 @@ class TakeawayOrderView(viewsets.ModelViewSet):
             
             pm = request.data.get('payment_method')
             # Tính khuyến mãi chỉ áp dụng cho tổng tiền đơn hàng (không bao gồm phí ship)
-            final_amount, applied_promotions = discounted_price(tong_tien)
+            final_amount, applied_promotions = discounted_price(tong_tien, order.order_time)
             gia_giam = tong_tien - final_amount
             
             # Tổng tiền cuối cùng = tiền sau giảm giá + phí giao hàng
@@ -584,7 +584,7 @@ class DineInOrderView(viewsets.ModelViewSet):
         user = self.request.user
         if user.loai_nguoi_dung == 'nhan_vien':
             # Nhân viên xem tất cả đơn dine-in
-            return Order.objects.select_related('khach_hang', 'nhan_vien', 'ban_an').prefetch_related('chitietorder_set__mon_an').filter(loai_order='dine_in').exclude(trang_thai__in=['canceled', 'completed']).order_by('-id')
+            return Order.objects.select_related('khach_hang', 'nhan_vien', 'ban_an').prefetch_related('chitietorder_set__mon_an').filter(loai_order='dine_in').exclude(trang_thai__in=['canceled',]).order_by('-id')
         return Order.objects.none()
     
     def create(self, request, *args, **kwargs):
@@ -820,7 +820,7 @@ class DineInOrderView(viewsets.ModelViewSet):
         # Tạo hóa đơn
         pm = request.data.get('payment_method')
         # Tính khuyến mãi chỉ áp dụng cho tổng tiền đơn hàng
-        final_amount, applied_promotions = discounted_price(tong_tien)
+        final_amount, applied_promotions = discounted_price(tong_tien, order.order_time)
         gia_giam = tong_tien - final_amount
         
         # Tổng tiền cuối cùng = tiền sau giảm giá + phí giao hàng (dine-in thì phi_giao_hang = 0)
@@ -1031,9 +1031,28 @@ class StatisticsView(viewsets.ViewSet):
 
 
 class HoaDonView(viewsets.ReadOnlyModelViewSet):
-    queryset = HoaDon.objects.all().select_related('order__khach_hang', 'order__nhan_vien', 'order__ban_an').prefetch_related('order__chitietorder_set__mon_an')
+    queryset = HoaDon.objects.all().select_related('order__khach_hang', 'order__khach_vang_lai', 'order__nhan_vien', 'order__ban_an').prefetch_related('order__chitietorder_set__mon_an', 'khuyen_mai')
     serializer_class = HoaDonSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        """Sử dụng HoaDonDetailSerializer cho retrieve (lấy chi tiết một hóa đơn)"""
+        if self.action in ['retrieve', 'by_order']:
+            return HoaDonDetailSerializer
+        return HoaDonSerializer
+    
+    @action(detail=False, methods=['get'], url_path='by-order/(?P<order_id>[^/.]+)')
+    def by_order(self, request, order_id=None):
+        """Lấy chi tiết hóa đơn theo order_id"""
+        try:
+            hoa_don = self.get_queryset().get(order_id=order_id)
+            serializer = self.get_serializer(hoa_don)
+            return Response(serializer.data)
+        except HoaDon.DoesNotExist:
+            return Response(
+                {'error': 'Không tìm thấy hóa đơn cho đơn hàng này'},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 
 class NotificationView(viewsets.ReadOnlyModelViewSet):

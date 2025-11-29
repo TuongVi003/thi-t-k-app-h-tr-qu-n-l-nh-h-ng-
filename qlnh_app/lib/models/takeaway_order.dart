@@ -12,6 +12,7 @@ class TakeawayOrder {
   final bool? khachHangXacNhanThanhToan;
   final double? phiGiaoHang;
   final double? tamTinh;
+  final double? tongGiamGia;
   final List<AppliedPromotion>? appliedPromotions;
 
   TakeawayOrder({
@@ -28,6 +29,7 @@ class TakeawayOrder {
     this.khachHangXacNhanThanhToan,
     this.phiGiaoHang,
     this.tamTinh,
+    this.tongGiamGia,
     this.appliedPromotions,
   });
 
@@ -58,6 +60,7 @@ class TakeawayOrder {
       khachHangXacNhanThanhToan: json['khach_hang_xac_nhan_thanh_toan'] as bool?,
       phiGiaoHang: (json['phi_giao_hang'] as num?)?.toDouble(),
       tamTinh: (json['tam_tinh'] as num?)?.toDouble(),
+      tongGiamGia: (json['tong_giam_gia'] as num?)?.toDouble(),
       appliedPromotions: (json['applied_promotions'] as List?)
           ?.map((promo) => AppliedPromotion.fromJson(promo))
           .toList(),

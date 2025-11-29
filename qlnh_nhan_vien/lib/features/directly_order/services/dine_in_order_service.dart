@@ -16,7 +16,6 @@ class DineInOrderService {
   // Lấy danh sách đơn dine-in
   Future<List<DineInOrder>> getDineInOrders() async {
     try {
-      print('📋 [DineInOrderService] Đang lấy danh sách đơn hàng...');
       final token = await _getToken();
       if (token == null) {
         print('❌ [DineInOrderService] Token null - chưa đăng nhập');

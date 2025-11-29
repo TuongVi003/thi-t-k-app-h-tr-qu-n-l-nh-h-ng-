@@ -18,7 +18,7 @@ class TakeawaySuccessScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tamtinh = order.tamTinh ?? 0.0;
-    final tongCong = tamtinh + (order.phiGiaoHang ?? 0.0);
+    final tongCong = tamtinh - (order.tongGiamGia ?? 0.0) + (order.phiGiaoHang ?? 0.0);
     return Scaffold(
       backgroundColor: AppColors.successBackground,
       appBar: AppBar(

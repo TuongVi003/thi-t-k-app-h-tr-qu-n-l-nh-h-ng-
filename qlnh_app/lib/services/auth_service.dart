@@ -39,7 +39,7 @@ class AuthService {
       
       if (_isLoggedIn && _accessToken != null) {
         print('[AuthService] ✅ Session restored - User is logged in');
-        print('[AuthService] 🔑 Token: ${_accessToken!.substring(0, 20)}...');
+        print('[AuthService] 🔑 Token: $_accessToken');
       } else {
         print('[AuthService] ℹ️ No saved session found');
       }

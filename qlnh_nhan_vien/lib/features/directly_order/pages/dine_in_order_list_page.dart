@@ -5,6 +5,8 @@ import '../widgets/add_items_dialog.dart';
 import 'dine_in_order_detail_page.dart';
 import 'create_dine_in_order_page.dart';
 import '../../../screens/staff_create_takeaway_screen.dart';
+import '../../../services/invoice_service.dart';
+import '../../../utils/invoice_pdf_generator.dart';
 
 class DineInOrderListPage extends StatefulWidget {
   const DineInOrderListPage({Key? key}) : super(key: key);
@@ -18,6 +20,7 @@ class _DineInOrderListPageState extends State<DineInOrderListPage> {
   List<DineInOrder> _orders = [];
   bool _isLoading = true;
   String _filterStatus = 'all';
+  final Set<int> _printingIds = <int>{};
 
   @override
   void initState() {
@@ -152,6 +155,11 @@ class _DineInOrderListPageState extends State<DineInOrderListPage> {
     
     // Có thể đặt mang về cho bất kỳ đơn nào trừ đơn đã hủy
     bool canCreateTakeaway = order.trangThai != 'canceled';
+    
+    // Có thể in hóa đơn khi đơn đã hoàn thành
+    bool canPrint = order.trangThai == 'completed';
+    
+    bool isPrinting = _printingIds.contains(order.id);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -333,8 +341,8 @@ class _DineInOrderListPageState extends State<DineInOrderListPage> {
                 ],
               ),
               
-              // Nút thêm món và đặt mang về
-              if (canAddItems || canCreateTakeaway) ...[
+              // Nút thêm món, đặt mang về và in hóa đơn
+              if (canAddItems || canCreateTakeaway || canPrint) ...[
                 const SizedBox(height: 10),
                 Row(
                   children: [
@@ -365,6 +373,29 @@ class _DineInOrderListPageState extends State<DineInOrderListPage> {
                           ),
                         ),
                       ),
+                    if ((canAddItems || canCreateTakeaway) && canPrint) const SizedBox(width: 8),
+                    if (canPrint)
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: isPrinting ? null : () => _printInvoice(order),
+                          icon: isPrinting
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : const Icon(Icons.print, size: 18),
+                          label: Text(isPrinting ? 'Đang in...' : 'In hóa đơn'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isPrinting ? Colors.grey : Colors.blueGrey,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ],
@@ -373,6 +404,34 @@ class _DineInOrderListPageState extends State<DineInOrderListPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _printInvoice(DineInOrder order) async {
+    setState(() => _printingIds.add(order.id));
+
+    try {
+      // Fetch invoice data from API
+      final invoice = await InvoiceService.getInvoiceByOrder(order.id);
+      
+      // Generate and print PDF
+      await InvoicePdfGenerator.generateAndPrintInvoice(invoice);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đang chuẩn bị in hóa đơn...')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi in hóa đơn: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _printingIds.remove(order.id));
+      }
+    }
   }
 
   void _showAddItemsDialog(DineInOrder order) {

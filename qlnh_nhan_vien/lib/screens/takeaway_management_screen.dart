@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import '../models/takeaway_order.dart';
 import '../services/takeaway_service.dart';
 import '../services/about_us_service.dart';
+import '../services/invoice_service.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import 'takeaway_order_detail_screen.dart';
 import 'create_takeaway_order_screen.dart';
 import '../utils/app_utils.dart';
+import '../utils/invoice_pdf_generator.dart';
 
 class TakeawayManagementScreen extends StatefulWidget {
   const TakeawayManagementScreen({super.key});
@@ -28,6 +30,7 @@ class _TakeawayManagementScreenState extends State<TakeawayManagementScreen> wit
   final Set<int> confirmingIds = <int>{};
   final Set<int> markingReadyIds = <int>{};
   final Set<int> completingIds = <int>{};
+  final Set<int> printingIds = <int>{};
 
   @override
   bool get wantKeepAlive => true;
@@ -389,6 +392,34 @@ class _TakeawayManagementScreenState extends State<TakeawayManagementScreen> wit
     );
   }
 
+  Future<void> _printInvoice(TakeawayOrder order) async {
+    printingIds.add(order.id);
+    setState(() {});
+
+    try {
+      // Fetch invoice data from API
+      final invoice = await InvoiceService.getInvoiceByOrder(order.id);
+      
+      // Generate and print PDF
+      await InvoicePdfGenerator.generateAndPrintInvoice(invoice);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đang chuẩn bị in hóa đơn...')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi in hóa đơn: ${e.toString()}')),
+        );
+      }
+    } finally {
+      printingIds.remove(order.id);
+      if (mounted) setState(() {});
+    }
+  }
+
   Color _getStatusColor(String status) {
     switch (status) {
       case 'pending':
@@ -415,6 +446,7 @@ class _TakeawayManagementScreenState extends State<TakeawayManagementScreen> wit
     final canMarkReady = order.trangThai == 'cooking' && 
                         currentUser?.chucVu == 'chef';
     final canComplete = order.trangThai == 'ready';
+    final canPrint = order.trangThai == 'completed';
 
     return Card(
       margin: const EdgeInsets.all(8),
@@ -651,6 +683,7 @@ class _TakeawayManagementScreenState extends State<TakeawayManagementScreen> wit
               // Action buttons
               Wrap(
                 spacing: 8,
+                runSpacing: 8,
                 children: [
                   if (canAccept)
                     ElevatedButton.icon(
@@ -716,6 +749,28 @@ class _TakeawayManagementScreenState extends State<TakeawayManagementScreen> wit
                       label: Text(completingIds.contains(order.id) ? 'Đang...' : 'Hoàn thành'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: completingIds.contains(order.id) ? Colors.grey : Colors.grey,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+
+                  if (canPrint)
+                    ElevatedButton.icon(
+                      onPressed: printingIds.contains(order.id)
+                          ? null
+                          : () => _printInvoice(order),
+                      icon: printingIds.contains(order.id)
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Icon(Icons.print, size: 16),
+                      label: Text(printingIds.contains(order.id) ? 'Đang...' : 'In hóa đơn'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: printingIds.contains(order.id) ? Colors.grey : Colors.blueGrey,
                         foregroundColor: Colors.white,
                       ),
                     ),

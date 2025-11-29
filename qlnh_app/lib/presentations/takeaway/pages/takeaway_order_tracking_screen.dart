@@ -121,6 +121,13 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
     return '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
+  String _formatCurrency(double amount) {
+    final intAmount = amount.toInt();
+    final String numStr = intAmount.toString();
+    final RegExp reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
+    return numStr.replaceAllMapped(reg, (Match match) => '${match[1]}.');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -505,7 +512,7 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${item.gia.toStringAsFixed(0)}đ x ${item.soLuong}',
+                          '${_formatCurrency(item.gia)}đ x ${item.soLuong}',
                           style: TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,
@@ -515,7 +522,7 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
                     ),
                   ),
                   Text(
-                    '${item.thanhTien.toStringAsFixed(0)}đ',
+                    '${_formatCurrency(item.thanhTien)}đ',
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -525,6 +532,64 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
               ),
             )),
             const Divider(),
+            // Tạm tính (subtotal - sum of items)
+            if (_order!.tamTinh != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Tạm tính',
+                    style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                  ),
+                  Text(
+                    '${_formatCurrency(_order!.tamTinh!)}đ',
+                    style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ],
+            // Phí giao hàng
+            if (_order!.phiGiaoHang != null && _order!.phiGiaoHang! > 0) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Phí giao hàng',
+                    style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                  ),
+                  Text(
+                    '${_formatCurrency(_order!.phiGiaoHang!)}đ',
+                    style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ],
+            // Giảm giá
+            if (_order!.tongGiamGia != null && _order!.tongGiamGia! > 0) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Giảm giá',
+                    style: TextStyle(fontSize: 14, color: Colors.green),
+                  ),
+                  Text(
+                    '-${_formatCurrency(_order!.tongGiamGia!)}đ',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.green,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 8),
+            const Divider(),
+            const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -533,7 +598,7 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  '${_order!.tongTien.toStringAsFixed(0)}đ',
+                  '${_formatCurrency(_order!.tongTien)}đ',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -542,6 +607,85 @@ class _TakeawayOrderTrackingScreenState extends State<TakeawayOrderTrackingScree
                 ),
               ],
             ),
+            // Applied promotions
+            if (_order!.appliedPromotions != null && _order!.appliedPromotions!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Divider(),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(Icons.local_offer, size: 20, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Khuyến mãi áp dụng',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ..._order!.appliedPromotions!.map((promo) => Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            promo.tenKhuyenMai,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            promo.displayType,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (promo.moTa.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        promo.moTa,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 4),
+                    Text(
+                      'Giảm: ${_formatCurrency(promo.discountValue)}đ',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.green,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+            ],
             const SizedBox(height: 12),
             const Divider(),
             Column(

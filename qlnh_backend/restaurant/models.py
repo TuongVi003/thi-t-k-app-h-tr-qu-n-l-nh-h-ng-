@@ -204,7 +204,6 @@ class Order(models.Model):
         
         # Only apply when delivery method is "Giao hàng tận nơi"
         if not self.phuong_thuc_giao_hang or self.phuong_thuc_giao_hang != 'Giao hàng tận nơi':
-            print("Shipping fee not applicable")
             return Decimal('0.00')
 
         distance = self.calculate_distance_km()
@@ -214,7 +213,7 @@ class Order(models.Model):
         try:
             fee_entry = AboutUs.objects.get(key='shipping_fee')
             fee_per_km = Decimal(str(fee_entry.noi_dung))
-            print(f"Fee per km: {fee_per_km}, Distance: {distance}")
+            # print(f"Fee per km: {fee_per_km}, Distance: {distance}")
         except (AboutUs.DoesNotExist, InvalidOperation, TypeError, ValueError):
             return None
 
