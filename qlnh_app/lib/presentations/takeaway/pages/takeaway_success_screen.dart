@@ -386,7 +386,7 @@ class TakeawaySuccessScreen extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  '${tongCong}đ',
+                                  '${tongCong.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}đ',
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
