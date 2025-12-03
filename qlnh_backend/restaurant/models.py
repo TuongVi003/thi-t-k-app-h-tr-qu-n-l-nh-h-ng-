@@ -98,6 +98,10 @@ class DonHang(models.Model):
     )
     trang_thai = models.CharField(max_length=50, choices=STATUS_CHOICES)
     ngay_dat = models.DateTimeField()
+    # Flags to avoid sending duplicate reminder notifications
+    notified_1_hour = models.BooleanField(default=False)
+    notified_30_min = models.BooleanField(default=False)
+    notified_10_min = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Đơn #{self.id} - {self.khach_hang.ho_ten}"
